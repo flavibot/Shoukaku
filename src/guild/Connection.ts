@@ -38,6 +38,7 @@ export class Connection extends EventEmitter {
      * ID of the connected voice channel
      */
     public channelId: string|null;
+
     /**
      * ID of the Shard that contains the guild that contains the connected voice channel
      */
@@ -51,6 +52,10 @@ export class Connection extends EventEmitter {
      */
     public deafened: boolean;
     /**
+     * ID of the last channelId connected to
+     */
+    public lastChannelId: string|null;
+    /**
      * ID of current session
      */
     public sessionId: string|null;
@@ -59,29 +64,17 @@ export class Connection extends EventEmitter {
      */
     public region: string|null;
     /**
-     * Connection state
+     * Last region of the connected voice channel
      */
-    public state: State;
-    /**
-     * Boolean that indicates if voice channel changed since initial connection
-     */
-    public moved: boolean;
-    /**
-     * Boolean that indicates if this instance is reconnecting
-     */
-    public reconnecting: boolean;
-    /**
-     * If this connection has been established once
-     */
-    public established: boolean;
+    public lastRegion: string|null;
     /**
      * Cached serverUpdate event from Lavalink
      */
     public serverUpdate: ServerUpdate|null;
     /**
-     * Get node function to get new nodes
+     * Connection state
      */
-    public getNode: (node: Map<string, Node>, connection: Connection) => Node|undefined;
+    public state: State;
     /**
      * @param manager The manager of this connection
      * @param options The options to pass in connection creation
@@ -100,14 +93,12 @@ export class Connection extends EventEmitter {
         this.shardId = options.shardId;
         this.muted = options.mute ?? false;
         this.deafened = options.deaf ?? false;
+        this.lastChannelId = null;
         this.sessionId = null;
         this.region = null;
-        this.state = State.DISCONNECTED;
-        this.moved = false;
-        this.reconnecting = false;
-        this.established = false;
+        this.lastRegion = null;
         this.serverUpdate = null;
-        this.getNode = options.getNode!;
+        this.state = State.DISCONNECTED;
     }
 
     /**
@@ -135,11 +126,12 @@ export class Connection extends EventEmitter {
      * @internal
      */
     public disconnect(): void {
+        if (this.state === State.DISCONNECTED) return;
         this.channelId = null;
         this.deafened = false;
         this.muted = false;
+        this.removeAllListeners();
         this.sendVoiceUpdate();
-        this.manager.connections.delete(this.guildId);
         this.state = State.DISCONNECTED;
         this.debug(`[Voice] -> [Node] & [Discord] : Connection Destroyed | Guild: ${this.guildId}`);
     }
@@ -149,6 +141,8 @@ export class Connection extends EventEmitter {
      * @internal
      */
     public async connect(): Promise<void> {
+        if (this.state === State.CONNECTING || this.state === State.CONNECTED) return;
+
         this.state = State.CONNECTING;
         this.sendVoiceUpdate();
         this.debug(`[Voice] -> [Discord] : Requesting Connection | Guild: ${this.guildId}`);
@@ -184,15 +178,15 @@ export class Connection extends EventEmitter {
      * @param options.self_mute Boolean that indicates if the current bot user is muted or not
      * @internal
      */
-    public setStateUpdate(options: StateUpdatePartial): void {
-        const { session_id, channel_id, self_deaf, self_mute } = options;
-        if (this.channelId && (channel_id && this.channelId !== channel_id)) {
-            this.moved = true;
+    public setStateUpdate({ session_id, channel_id, self_deaf, self_mute }: StateUpdatePartial): void {
+        this.lastChannelId = this.channelId?.repeat(1) || null;
+        this.channelId = channel_id || null;
+
+        if (this.channelId && this.lastChannelId !== this.channelId) {
             this.debug(`[Voice] <- [Discord] : Channel Moved | Old Channel: ${this.channelId} Guild: ${this.guildId}`);
         }
 
-        this.channelId = channel_id || this.channelId;
-        if (!channel_id) {
+        if (!this.channelId) {
             this.state = State.DISCONNECTED;
             this.debug(`[Voice] <- [Discord] : Channel Disconnected | Guild: ${this.guildId}`);
         }
@@ -213,18 +207,18 @@ export class Connection extends EventEmitter {
             this.emit('connectionUpdate', VoiceState.SESSION_ENDPOINT_MISSING);
             return;
         }
-
         if (!this.sessionId) {
             this.emit('connectionUpdate', VoiceState.SESSION_ID_MISSING);
             return;
         }
 
-        if (this.region && !data.endpoint.startsWith(this.region)) {
-            this.moved = true;
-            this.debug(`[Voice] <- [Discord] : Voice Region Moved | Old Region: ${this.region} Guild: ${this.guildId}`);
+        this.lastRegion = this.region?.repeat(1) || null;
+        this.region = data.endpoint.split('.').shift()?.replace(/[0-9]/g, '') || null;
+
+        if (this.region && this.lastRegion !== this.region) {
+            this.debug(`[Voice] <- [Discord] : Voice Region Moved | Old Region: ${this.lastRegion} New Region: ${this.region} Guild: ${this.guildId}`);
         }
 
-        this.region = data.endpoint.split('.').shift()?.replace(/[0-9]/g, '') || null;
         this.serverUpdate = data;
         this.emit('connectionUpdate', VoiceState.SESSION_READY);
         this.debug(`[Voice] <- [Discord] : Server Update Received | Server: ${this.region} Guild: ${this.guildId}`);

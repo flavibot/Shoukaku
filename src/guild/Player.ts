@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { Node } from '../node/Node';
 import { Connection } from './Connection';
-import { OpCodes, State } from '../Constants';
+import { OpCodes, State, ShoukakuDefaults } from '../Constants';
 import { Exception, Track, UpdatePlayerInfo, UpdatePlayerOptions } from '../node/Rest';
 
 export type TrackEndReason = 'finished' | 'loadFailed' | 'stopped' | 'replaced' | 'cleanup';
@@ -201,10 +201,6 @@ export class Player extends EventEmitter {
      */
     public readonly guildId: string;
     /**
-     * Connection class that this player is bound on
-     */
-    public readonly connection: Connection;
-    /**
      * Lavalink node this player is connected to
      */
     public node: Node;
@@ -236,10 +232,9 @@ export class Player extends EventEmitter {
      * @param node An instance of Node (Lavalink API wrapper)
      * @param connection An instance of connection class
      */
-    constructor(node: Node, connection: Connection) {
+    constructor(guildId: string, node: Node) {
         super();
-        this.guildId = connection.guildId;
-        this.connection = connection;
+        this.guildId = guildId;
         this.node = node;
         this.track = null;
         this.volume = 100;
@@ -250,6 +245,7 @@ export class Player extends EventEmitter {
     }
 
     public get playerData(): UpdatePlayerInfo {
+        const connection = this.node.manager.connections.get(this.guildId)!;
         return {
             guildId: this.guildId,
             playerOptions: {
@@ -258,9 +254,9 @@ export class Player extends EventEmitter {
                 paused: this.paused,
                 filters: this.filters,
                 voice: {
-                    token: this.connection.serverUpdate!.token,
-                    endpoint: this.connection.serverUpdate!.endpoint,
-                    sessionId: this.connection.sessionId!
+                    token: connection.serverUpdate!.token,
+                    endpoint: connection.serverUpdate!.endpoint,
+                    sessionId: connection.sessionId!
                 },
                 volume: this.volume
             }
@@ -268,35 +264,35 @@ export class Player extends EventEmitter {
     }
 
     /**
-     * Move player to another node. Auto disconnects when the node specified is not found
+     * Move player to another node
      * @param name? Name of node to move to, or the default ideal node
+     * @returns true if the player was moved, false if not
      */
-    public async move(name?: string): Promise<void> {
+    public async movePlayer(name?: string): Promise<boolean> {
+        const connection = this.node.manager.connections.get(this.guildId)!;
+        const node = this.node.manager.nodes.get(name!) || this.node.manager.options.nodeResolver(this.node.manager.nodes, connection);
+        if (!node && ![ ...this.node.manager.nodes.values() ].some(node => node.state === State.CONNECTED))
+            throw new Error('No available nodes to move to');
+        if (!node || node.name === this.node.name || node.state !== State.CONNECTED) return false;
+        let lastNode = this.node.manager.nodes.get(this.node.name);
+        if (!lastNode || lastNode.state !== State.CONNECTED)
+            lastNode = ShoukakuDefaults.nodeResolver(this.node.manager.nodes, connection);
+        await this.destroyPlayer();
         try {
-            const node = this.node.manager.nodes.get(name!) || this.connection.getNode(this.connection.manager.nodes, this.connection);
-            if (!node)
-                throw new Error('No node available to move to');
-            if (node.state !== State.CONNECTED)
-                throw new Error('Tried to move to a node that is not connected');
-            if (node.name === this.node.name)
-                throw new Error('Tried to move to the same node where the current player is connected on');
-            await this.destroyPlayer().catch(() => null);
             this.node = node;
-            this.node.players.set(this.guildId, this);
-            await this.resume();
+            await this.resumePlayer();
+            return true;
         } catch (error) {
-            this.connection.disconnect();
-            await this.destroyPlayer(true);
-            throw error;
+            this.node = lastNode!;
+            await this.resumePlayer();
+            return false;
         }
     }
 
     /**
      * Destroys the player in remote lavalink side
      */
-    public async destroyPlayer(clean: boolean = false): Promise<void> {
-        this.node.players.delete(this.guildId);
-        if (clean) this.clean();
+    public async destroyPlayer(): Promise<void> {
         await this.node.rest.destroyPlayer(this.guildId);
     }
 
@@ -499,20 +495,20 @@ export class Player extends EventEmitter {
      * Resumes the current track
      * @param options An object that conforms to ResumeOptions that specify behavior on resuming
      */
-    public async resume(options: ResumeOptions = {}): Promise<void> {
+    public async resumePlayer(options: ResumeOptions = {}): Promise<void> {
         const data = this.playerData;
         if (options.noReplace) data.noReplace = options.noReplace;
         if (options.startTime) data.playerOptions.position = options.startTime;
         if (options.endTime) data.playerOptions.position;
         if (options.pause) data.playerOptions.paused = options.pause;
-        await this.update(data);
+        await this.updatePlayer(data);
         this.emit('resumed', this);
     }
 
     /**
      * If you want to update the whole player yourself, sends raw update player info to lavalink
      */
-    public async update(updatePlayer: UpdatePlayerInfo): Promise<void> {
+    public async updatePlayer(updatePlayer: UpdatePlayerInfo): Promise<void> {
         const data = { ...updatePlayer, ...{ guildId: this.guildId, sessionId: this.node.sessionId! }};
         await this.node.rest.updatePlayer(data);
         if (updatePlayer.playerOptions) {
@@ -526,19 +522,11 @@ export class Player extends EventEmitter {
     }
 
     /**
-     * Remove all event listeners on this instance
+     * Cleans this player instance
      * @internal
      */
     public clean(): void {
         this.removeAllListeners();
-        this.reset();
-    }
-
-    /**
-     * Reset the track, position and filters on this instance to defaults
-     * @internal
-     */
-    public reset(): void {
         this.track = null;
         this.volume = 100;
         this.position = 0;
@@ -549,24 +537,18 @@ export class Player extends EventEmitter {
      * Sends server update to lavalink
      * @internal
      */
-    public async sendServerUpdate(): Promise<void> {
-        try {
-            const playerUpdate = {
-                guildId: this.guildId,
-                playerOptions: {
-                    voice: {
-                        token: this.connection.serverUpdate!.token,
-                        endpoint: this.connection.serverUpdate!.endpoint,
-                        sessionId: this.connection.sessionId!
-                    }
+    public async sendServerUpdate(connection: Connection): Promise<void> {
+        const playerUpdate = {
+            guildId: this.guildId,
+            playerOptions: {
+                voice: {
+                    token: connection.serverUpdate!.token,
+                    endpoint: connection.serverUpdate!.endpoint,
+                    sessionId: connection.sessionId!
                 }
-            };
-            await this.node.rest.updatePlayer(playerUpdate);
-        } catch (error) {
-            if (!this.connection.established) throw error;
-            this.connection.disconnect();
-            await Promise.allSettled([ this.destroyPlayer(true) ]);
-        }
+            }
+        };
+        await this.node.rest.updatePlayer(playerUpdate);
     }
 
     /**
@@ -600,12 +582,7 @@ export class Player extends EventEmitter {
                 this.emit('exception', json);
                 break;
             case 'WebSocketClosedEvent':
-                if (!this.connection.reconnecting) {
-                    if (!this.connection.moved)
-                        this.emit('closed', json);
-                    else
-                        this.connection.moved = false;
-                }
+                this.emit('closed', json);
                 break;
             default:
                 this.node.emit(

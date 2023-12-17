@@ -80,10 +80,6 @@ export class Node extends EventEmitter {
      */
     public readonly manager: Shoukaku;
     /**
-     * A map of guild ID to players
-     */
-    public readonly players: Map<string, Player>;
-    /**
      * Lavalink rest API
      */
     public readonly rest: Rest;
@@ -151,7 +147,6 @@ export class Node extends EventEmitter {
     constructor(manager: Shoukaku, options: NodeOption) {
         super();
         this.manager = manager;
-        this.players = new Map();
         this.rest = new (this.manager.options.structures.rest || Rest)(this, options);
         this.name = options.name;
         this.group = options.group;
@@ -270,11 +265,11 @@ export class Node extends EventEmitter {
                 break;
             case OpCodes.READY:
                 this.sessionId = json.sessionId;
-
-                const resumeByLibrary = this.initialized && (this.players.size && this.manager.options.resumeByLibrary);
+                const players = [ ...this.manager.players.values() ].filter(player => player.node.name === this.name);
+                const resumeByLibrary = this.initialized && (players.length && this.manager.options.resumeByLibrary);
                 if (!json.resumed && resumeByLibrary) {
                     try {
-                        await this.resumeInternally();
+                        await this.resumePlayers();
                     } catch (error) {
                         this.error(error);
                     }
@@ -291,7 +286,7 @@ export class Node extends EventEmitter {
                 break;
             case OpCodes.EVENT:
             case OpCodes.PLAYER_UPDATE:
-                const player = this.players.get(json.guildId);
+                const player = this.manager.players.get(json.guildId);
                 if (!player) return;
                 if (json.op === OpCodes.EVENT)
                     player.onPlayerEvent(json);
@@ -329,7 +324,7 @@ export class Node extends EventEmitter {
      * Destroys the websocket connection
      * @internal
      */
-    private destroy(move: boolean, count: number = 0): void {
+    private destroy(count: number = 0): void {
         this.ws?.removeAllListeners();
         this.ws?.close();
         this.ws = null;
@@ -337,7 +332,7 @@ export class Node extends EventEmitter {
         this.state = State.DISCONNECTED;
         if (!this.shouldClean) return;
         this.destroyed = true;
-        this.emit('disconnect', move, count);
+        this.emit('disconnect', count);
     }
 
     /**
@@ -345,16 +340,15 @@ export class Node extends EventEmitter {
      * @internal
      */
     private async clean(): Promise<void> {
-        let move = this.manager.options.moveOnDisconnect;
-        if (!move) return this.destroy(false);
-        let count;
+        const move = this.manager.options.moveOnDisconnect;
+        if (!move) return this.destroy();
+        let count = 0;
         try {
             count = await this.movePlayers();
-            move = count > 0;
         } catch (error) {
             this.error(error);
         } finally {
-            this.destroy(move, count);
+            this.destroy(count);
         }
     }
 
@@ -364,7 +358,7 @@ export class Node extends EventEmitter {
      */
     private async reconnect(): Promise<void> {
         if (this.state === State.RECONNECTING) return;
-        if (this.state !== State.DISCONNECTED) this.destroy(false);
+        if (this.state !== State.DISCONNECTED) this.destroy();
         this.state = State.RECONNECTING;
         this.reconnects++;
         this.emit('reconnecting', this.manager.options.reconnectTries - this.reconnects, this.manager.options.reconnectInterval);
@@ -377,19 +371,20 @@ export class Node extends EventEmitter {
      * Tries to resume the players internally
      * @internal
      */
-    private async resumeInternally(): Promise<void> {
+    private async resumePlayers(): Promise<void> {
         const playersWithData = [];
         const playersWithoutData = [];
 
-        for (const player of this.players.values()) {
-            if (player.connection.serverUpdate)
+        for (const player of this.manager.players.values()) {
+            const serverUpdate = this.manager.connections.get(player.guildId)?.serverUpdate;
+            if (serverUpdate)
                 playersWithData.push(player);
             else
                 playersWithoutData.push(player);
         }
 
         await Promise.allSettled([
-            ...playersWithData.map(player => player.resume()),
+            ...playersWithData.map(player => player.resumePlayer()),
             ...playersWithoutData.map(player => this.manager.leaveVoiceChannel(player.guildId))
         ]);
     }
@@ -399,8 +394,8 @@ export class Node extends EventEmitter {
      * @internal
      */
     private async movePlayers(): Promise<number> {
-        const players = [ ...this.players.values() ];
-        const data = await Promise.allSettled(players.map(player => player.move()));
+        const players = [ ...this.manager.players.values() ];
+        const data = await Promise.allSettled(players.map(player => player.movePlayer()));
         return data.filter(results => results.status === 'fulfilled').length;
     }
 }
