@@ -1,7 +1,6 @@
 import { EventEmitter } from 'events';
 import { IncomingMessage } from 'http';
 import { NodeOption, Shoukaku } from '../Shoukaku';
-import { Player } from '../guild/Player';
 import { OpCodes, State, Versions } from '../Constants';
 import { wait } from '../Utils';
 import { Rest } from './Rest';
@@ -384,7 +383,7 @@ export class Node extends EventEmitter {
         }
 
         await Promise.allSettled([
-            ...playersWithData.map(player => player.resumePlayer()),
+            ...playersWithData.map(player => player.resume()),
             ...playersWithoutData.map(player => this.manager.leaveVoiceChannel(player.guildId))
         ]);
     }
@@ -395,7 +394,7 @@ export class Node extends EventEmitter {
      */
     private async movePlayers(): Promise<number> {
         const players = [ ...this.manager.players.values() ];
-        const data = await Promise.allSettled(players.map(player => player.movePlayer()));
+        const data = await Promise.allSettled(players.map(player => player.move()));
         return data.filter(results => results.status === 'fulfilled').length;
     }
 }

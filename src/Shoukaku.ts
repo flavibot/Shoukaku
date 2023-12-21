@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { State, ShoukakuDefaults, VoiceState } from './Constants';
+import { ShoukakuDefaults, VoiceState } from './Constants';
 import { Node } from './node/Node';
 import { Connector } from './connectors/Connector';
 import { Constructor, mergeDefault } from './Utils';
@@ -85,7 +85,7 @@ export interface ShoukakuOptions {
     /**
      * Node Resolver to use if you want to customize it
      */
-    nodeResolver?: (node: Map<string, Node>, connection: Connection) => Node|undefined;
+    nodeResolver?: (nodes: Map<string, Node>, connection?: Connection) => Node|undefined;
 }
 
 export interface VoiceChannelOptions {
@@ -289,7 +289,9 @@ export class Shoukaku extends EventEmitter {
         }
         const player = this.players.get(guildId);
         if (player) {
-            await player.destroyPlayer();
+            try {
+                await player.destroy();
+            } catch (_) {}
             player.clean();
             this.players.delete(guildId);
         }
