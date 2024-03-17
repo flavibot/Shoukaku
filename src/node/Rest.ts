@@ -433,7 +433,7 @@ export class Rest {
       req.setTimeout(this.node.manager.options.restTimeout * 1000);
       req.once("timeout", () => {
         reject(
-          `Request Aborted timeout: ${this.node.manager.options.restTimeout}s`
+          `[NODE-REST] (${this.node.name}) Request Aborted timeout: ${this.node.manager.options.restTimeout}s`
         );
         req.destroy();
       });
@@ -458,13 +458,13 @@ export class Rest {
                 d = JSON.parse(result);
                 if (d.message)
                   return reject(
-                    `Request failled with status code: ${resp.statusCode} message: ${d.message}`
+                    `[NODE-REST] (${this.node.name}) Request failled with status code: ${resp.statusCode} message: ${d.message}`
                   );
               } catch (err) {
                 /* empty */
               }
               return reject(
-                `Request failled with status code: ${resp.statusCode} `
+                `[NODE-REST] (${this.node.name}) Request failled with status code: ${resp.statusCode} `
               );
             }
             try {
@@ -479,7 +479,7 @@ export class Rest {
       req.on("error", (err) => {
         if (req.destroyed) return;
 
-        console.log("Error 2 rest", err);
+        console.log(`[NODE-REST] (${this.node.name}) Error 2 rest`, err);
         reject(err);
       });
       if (!["GET", "HEAD"].includes(reqOptions.method) && options.body) {
