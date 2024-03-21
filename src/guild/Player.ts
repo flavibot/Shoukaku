@@ -277,7 +277,7 @@ export class Player extends EventEmitter {
         let lastNode = this.node.manager.nodes.get(this.node.name);
         if (!lastNode || lastNode.state !== State.CONNECTED)
             lastNode = ShoukakuDefaults.nodeResolver(this.node.manager.nodes, connection);
-        await this.destroy();
+        await this.destroy().catch(() => null);;
         try {
             this.node = node;
             await this.resume();
