@@ -219,7 +219,7 @@ export class Rest {
     public resolve(identifier: string): Promise<LavalinkResponse | undefined> {
         const options = {
             endpoint: '/loadtracks',
-            options: { params: { identifier } },
+            options: { params: { identifier } }
         };
         return this.fetch(options);
     }
@@ -232,7 +232,7 @@ export class Rest {
     public decode(track: string): Promise<Track | undefined> {
         const options = {
             endpoint: '/decodetrack',
-            options: { params: { track } },
+            options: { params: { track } }
         };
         return this.fetch<Track>(options);
     }
@@ -420,14 +420,14 @@ export class Rest {
                 method: options.method?.toUpperCase() || 'GET',
                 headers: {
                     Authorization: this.auth,
-                    'User-Agent': this.node.manager.options.userAgent,
-                },
+                    'User-Agent': this.node.manager.options.userAgent
+                }
             };
             const url = new URL(`${this.url}${this.version}${endpoint}`);
             if (options.headers)
                 reqOptions.headers = {
                     ...reqOptions.headers,
-                    ...options.headers,
+                    ...options.headers
                 };
             if (options.params)
                 url.search = new URLSearchParams(options.params).toString();
