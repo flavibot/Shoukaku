@@ -28,7 +28,7 @@ export interface Track {
         artworkUrl?: string;
         isrc?: string;
         sourceName: string;
-    }
+    };
     pluginInfo: unknown;
 }
 
@@ -37,7 +37,7 @@ export interface Playlist {
     info: {
         name: string;
         selectedTrack: number;
-    }
+    };
     pluginInfo: unknown;
     tracks: Track[];
 }
@@ -49,31 +49,36 @@ export interface Exception {
 }
 
 export interface TrackResult {
-    loadType: LoadType.TRACK,
-    data: Track
+    loadType: LoadType.TRACK;
+    data: Track;
 }
 
 export interface PlaylistResult {
-    loadType: LoadType.PLAYLIST,
-    data: Playlist
+    loadType: LoadType.PLAYLIST;
+    data: Playlist;
 }
 
 export interface SearchResult {
-    loadType: LoadType.SEARCH,
-    data: Track[]
+    loadType: LoadType.SEARCH;
+    data: Track[];
 }
 
 export interface EmptyResult {
-    loadType: LoadType.EMPTY,
-    data: {}
+    loadType: LoadType.EMPTY;
+    data: {};
 }
 
 export interface ErrorResult {
-    loadType: LoadType.ERROR,
-    data: Exception
+    loadType: LoadType.ERROR;
+    data: Exception;
 }
 
-export type LavalinkResponse = TrackResult | PlaylistResult | SearchResult | EmptyResult | ErrorResult;
+export type LavalinkResponse =
+    | TrackResult
+    | PlaylistResult
+    | SearchResult
+    | EmptyResult
+    | ErrorResult;
 
 export interface Address {
     address: string;
@@ -82,7 +87,12 @@ export interface Address {
 }
 
 export interface RoutePlanner {
-    class: null | 'RotatingIpRoutePlanner' | 'NanoIpRoutePlanner' | 'RotatingNanoIpRoutePlanner' | 'BalancingIpRoutePlanner';
+    class:
+        | null
+        | 'RotatingIpRoutePlanner'
+        | 'NanoIpRoutePlanner'
+        | 'RotatingNanoIpRoutePlanner'
+        | 'BalancingIpRoutePlanner';
     details: null | {
         ipBlock: {
             type: string;
@@ -102,18 +112,19 @@ export interface LavalinkPlayerVoice {
     endpoint: string;
     sessionId: string;
     connected?: boolean;
-    ping?: number
+    ping?: number;
 }
 
-export interface LavalinkPlayerVoiceOptions extends Omit<LavalinkPlayerVoice, 'connected' | 'ping'> { }
+export interface LavalinkPlayerVoiceOptions
+    extends Omit<LavalinkPlayerVoice, 'connected' | 'ping'> {}
 
 export interface LavalinkPlayer {
-    guildId: string,
-    track?: Track,
+    guildId: string;
+    track?: Track;
     volume: number;
     paused: boolean;
-    voice: LavalinkPlayerVoice
-    filters: FilterOptions
+    voice: LavalinkPlayerVoice;
+    filters: FilterOptions;
 }
 
 export interface UpdatePlayerOptions {
@@ -204,7 +215,7 @@ export class Rest {
     public resolve(identifier: string): Promise<LavalinkResponse | undefined> {
         const options = {
             endpoint: '/loadtracks',
-            options: { params: { identifier }}
+            options: { params: { identifier } }
         };
         return this.fetch(options);
     }
@@ -217,7 +228,7 @@ export class Rest {
     public decode(track: string): Promise<Track | undefined> {
         const options = {
             endpoint: '/decodetrack',
-            options: { params: { track }}
+            options: { params: { track } }
         };
         return this.fetch<Track>(options);
     }
@@ -231,7 +242,7 @@ export class Rest {
             endpoint: `/sessions/${this.sessionId}/players`,
             options: {}
         };
-        return await this.fetch<LavalinkPlayer[]>(options) ?? [];
+        return (await this.fetch<LavalinkPlayer[]>(options)) ?? [];
     }
 
     /**
@@ -251,7 +262,9 @@ export class Rest {
      * @param data SessionId from Discord
      * @returns Promise that resolves to a Lavalink player
      */
-    public updatePlayer(data: UpdatePlayerInfo): Promise<LavalinkPlayer | undefined> {
+    public updatePlayer(
+        data: UpdatePlayerInfo
+    ): Promise<LavalinkPlayer | undefined> {
         const options = {
             endpoint: `/sessions/${this.sessionId}/players/${data.guildId}`,
             options: {
@@ -282,7 +295,10 @@ export class Rest {
      * @param timeout Timeout to wait for resuming
      * @returns Promise that resolves to a Lavalink player
      */
-    public updateSession(resuming?: boolean, timeout?: number): Promise<SessionInfo | undefined> {
+    public updateSession(
+        resuming?: boolean,
+        timeout?: number
+    ): Promise<SessionInfo | undefined> {
         const options = {
             endpoint: `/sessions/${this.sessionId}`,
             options: {
@@ -337,7 +353,7 @@ export class Rest {
     /**
      * Get Lavalink info
      */
-    public getLavalinkInfo(): Promise<NodeInfo|undefined> {
+    public getLavalinkInfo(): Promise<NodeInfo | undefined> {
         const options = {
             endpoint: '/info',
             options: {
@@ -354,7 +370,6 @@ export class Rest {
      * @internal
      */
     protected fetch<T>(fetchOptions: FetchOptions): Promise<T | undefined> {
-
         /*
         const { endpoint, options } = fetchOptions;
         let headers = {
@@ -395,26 +410,30 @@ export class Rest {
         }
 */
 
-
         return new Promise((resolve, reject) => {
             const { endpoint, options } = fetchOptions;
             const reqOptions = {
                 method: options.method?.toUpperCase() || 'GET',
                 headers: {
-                    'Authorization': this.auth,
-                    'User-Agent': this.node.manager.options.userAgent,
+                    Authorization: this.auth,
+                    'User-Agent': this.node.manager.options.userAgent
                 }
             };
             const url = new URL(`${this.url}${this.version}${endpoint}`);
             if (options.headers)
-                reqOptions.headers = { ...reqOptions.headers, ...options.headers };
+                reqOptions.headers = {
+                    ...reqOptions.headers,
+                    ...options.headers
+                };
             if (options.params)
                 url.search = new URLSearchParams(options.params).toString();
 
             const req = request(url.toString(), reqOptions);
             req.setTimeout(this.node.manager.options.restTimeout * 1000);
             req.once('timeout', () => {
-                reject(`Request Aborted timeout: ${this.node.manager.options.restTimeout}s`);
+                reject(
+                    `[NODE-REST] (${this.node.name}) Request Aborted timeout: ${this.node.manager.options.restTimeout}s`
+                );
                 req.destroy();
             });
 
@@ -424,17 +443,26 @@ export class Rest {
                 resp.on('data', (chunk) => {
                     buffData += chunk;
                 }).once('end', () => {
-
                     const result = buffData.toString();
                     // console.log("code:", res.statusCode, res.statusMessage)
                     let d;
-                    if (!resp.statusCode || resp.statusCode < 200 || resp.statusCode > 299) {
+                    if (
+                        !resp.statusCode ||
+                        resp.statusCode < 200 ||
+                        resp.statusCode > 299
+                    ) {
                         try {
                             d = JSON.parse(result);
                             if (d.message)
-                                return reject(`Request failled with status code: ${resp.statusCode} message: ${d.message}`);
-                        } catch (err) { /* empty */ }
-                        return reject(`Request failled with status code: ${resp.statusCode} `);
+                                return reject(
+                                    `[NODE-REST] (${this.node.name}) Request failled with status code: ${resp.statusCode} message: ${d.message}`
+                                );
+                        } catch (err) {
+                            /* empty */
+                        }
+                        return reject(
+                            `[NODE-REST] (${this.node.name}) Request failled with status code: ${resp.statusCode} `
+                        );
                     }
                     try {
                         d = JSON.parse(result);
@@ -448,15 +476,16 @@ export class Rest {
             req.on('error', (err) => {
                 if (req.destroyed) return;
 
-                console.log('Error 2 rest', err);
+                console.log(
+                    `[NODE-REST] (${this.node.name}) Error 2 rest`,
+                    err
+                );
                 reject(err);
             });
-            if (![ 'GET', 'HEAD' ].includes(reqOptions.method) && options.body) {
+            if (!['GET', 'HEAD'].includes(reqOptions.method) && options.body) {
                 req.write(JSON.stringify(options.body));
             }
             req.end();
         });
-
-
     }
 }
