@@ -1,174 +1,175 @@
-import { Node, NodeInfo, NodeStats } from './Node';
-import { NodeOption } from '../Shoukaku';
-import { Versions } from '../Constants';
-import { FilterOptions } from '../guild/Player';
-import { request } from 'http';
+import { Node, NodeInfo, NodeStats } from "./Node";
+import { NodeOption } from "../Shoukaku";
+import { Versions } from "../Constants";
+import { FilterOptions } from "../guild/Player";
+import { request } from "http";
 
-export type Severity = 'common' | 'suspicious' | 'fault';
+export type Severity = "common" | "suspicious" | "fault";
 
 export enum LoadType {
-    TRACK = 'track',
-    PLAYLIST = 'playlist',
-    SEARCH = 'search',
-    EMPTY = 'empty',
-    ERROR = 'error',
+  TRACK = "track",
+  PLAYLIST = "playlist",
+  SEARCH = "search",
+  EMPTY = "empty",
+  ERROR = "error",
 }
 
 export interface Track {
-    encoded: string;
-    info: {
-        identifier: string;
-        isSeekable: boolean;
-        author: string;
-        length: number;
-        isStream: boolean;
-        position: number;
-        title: string;
-        uri?: string;
-        artworkUrl?: string;
-        isrc?: string;
-        sourceName: string;
-    };
-    pluginInfo: unknown;
+  encoded: string;
+  info: {
+    identifier: string;
+    isSeekable: boolean;
+    author: string;
+    length: number;
+    isStream: boolean;
+    position: number;
+    title: string;
+    uri?: string;
+    artworkUrl?: string;
+    isrc?: string;
+    sourceName: string;
+  };
+  pluginInfo: unknown;
 }
 
 export interface Playlist {
-    encoded: string;
-    info: {
-        name: string;
-        selectedTrack: number;
-    };
-    pluginInfo: unknown;
-    tracks: Track[];
+  encoded: string;
+  info: {
+    name: string;
+    selectedTrack: number;
+  };
+  pluginInfo: unknown;
+  tracks: Track[];
 }
 
 export interface Exception {
-    message: string;
-    severity: Severity;
-    cause: string;
+  message: string;
+  severity: Severity;
+  cause: string;
 }
 
 export interface TrackResult {
-    loadType: LoadType.TRACK;
-    data: Track;
+  loadType: LoadType.TRACK;
+  data: Track;
 }
 
 export interface PlaylistResult {
-    loadType: LoadType.PLAYLIST;
-    data: Playlist;
+  loadType: LoadType.PLAYLIST;
+  data: Playlist;
 }
 
 export interface SearchResult {
-    loadType: LoadType.SEARCH;
-    data: Track[];
+  loadType: LoadType.SEARCH;
+  data: Track[];
 }
 
 export interface EmptyResult {
-    loadType: LoadType.EMPTY;
-    data: {};
+  loadType: LoadType.EMPTY;
+  data: {};
 }
 
 export interface ErrorResult {
-    loadType: LoadType.ERROR;
-    data: Exception;
+  loadType: LoadType.ERROR;
+  data: Exception;
 }
 
 export type LavalinkResponse =
-    | TrackResult
-    | PlaylistResult
-    | SearchResult
-    | EmptyResult
-    | ErrorResult;
+  | TrackResult
+  | PlaylistResult
+  | SearchResult
+  | EmptyResult
+  | ErrorResult;
 
 export interface Address {
-    address: string;
-    failingTimestamp: number;
-    failingTime: string;
+  address: string;
+  failingTimestamp: number;
+  failingTime: string;
 }
 
 export interface RoutePlanner {
-    class:
-        | null
-        | 'RotatingIpRoutePlanner'
-        | 'NanoIpRoutePlanner'
-        | 'RotatingNanoIpRoutePlanner'
-        | 'BalancingIpRoutePlanner';
-    details: null | {
-        ipBlock: {
-            type: string;
-            size: string;
-        };
-        failingAddresses: Address[];
-        rotateIndex: string;
-        ipIndex: string;
-        currentAddress: string;
-        blockIndex: string;
-        currentAddressIndex: string;
+  class:
+    | null
+    | "RotatingIpRoutePlanner"
+    | "NanoIpRoutePlanner"
+    | "RotatingNanoIpRoutePlanner"
+    | "BalancingIpRoutePlanner";
+  details: null | {
+    ipBlock: {
+      type: string;
+      size: string;
     };
+    failingAddresses: Address[];
+    rotateIndex: string;
+    ipIndex: string;
+    currentAddress: string;
+    blockIndex: string;
+    currentAddressIndex: string;
+  };
 }
 
 export interface LavalinkPlayerVoice {
-    token: string;
-    endpoint: string;
-    sessionId: string;
-    connected?: boolean;
-    ping?: number;
+  token: string;
+  endpoint: string;
+  sessionId: string;
+  connected?: boolean;
+  ping?: number;
 }
 
 export interface LavalinkPlayerVoiceOptions
-    extends Omit<LavalinkPlayerVoice, 'connected' | 'ping'> {}
+  extends Omit<LavalinkPlayerVoice, "connected" | "ping"> {}
 
 export interface LavalinkPlayer {
-    guildId: string;
-    track?: Track;
-    volume: number;
-    paused: boolean;
-    voice: LavalinkPlayerVoice;
-    filters: FilterOptions;
+  guildId: string;
+  track?: Track;
+  volume: number;
+  paused: boolean;
+  voice: LavalinkPlayerVoice;
+  filters: FilterOptions;
+}
+
+export interface UpdatePlayerTrackOptions {
+  encoded?: string | null;
+  identifier?: string;
+  userData?: unknown;
 }
 
 export interface UpdatePlayerOptions {
-    encoded?: string | null;
-    /**
-     * @deprecated this may not work in newer lavalink versions, use "encoded" instead
-     */
-    encodedTrack?: string | null;
-    identifier?: string;
-    position?: number;
-    endTime?: number;
-    volume?: number;
-    paused?: boolean;
-    filters?: FilterOptions;
-    voice?: LavalinkPlayerVoiceOptions;
+  track?: UpdatePlayerTrackOptions;
+  position?: number;
+  endTime?: number;
+  volume?: number;
+  paused?: boolean;
+  filters?: FilterOptions;
+  voice?: LavalinkPlayerVoiceOptions;
 }
 
 export interface UpdatePlayerInfo {
-    guildId: string;
-    playerOptions: UpdatePlayerOptions;
-    noReplace?: boolean;
+  guildId: string;
+  playerOptions: UpdatePlayerOptions;
+  noReplace?: boolean;
 }
 
 export interface SessionInfo {
-    resumingKey?: string;
-    timeout: number;
+  resumingKey?: string;
+  timeout: number;
 }
 
 interface FetchOptions {
-    endpoint: string;
-    options: {
-        headers?: Record<string, string>;
-        params?: Record<string, string>;
-        method?: string;
-        body?: Record<string, unknown>;
-        [key: string]: unknown;
-    };
+  endpoint: string;
+  options: {
+    headers?: Record<string, string>;
+    params?: Record<string, string>;
+    method?: string;
+    body?: Record<string, unknown>;
+    [key: string]: unknown;
+  };
 }
 
 interface FinalFetchOptions {
-    method: string;
-    headers: Record<string, string>;
-    signal: AbortSignal;
-    body?: string;
+  method: string;
+  headers: Record<string, string>;
+  signal: AbortSignal;
+  body?: string;
 }
 
 /**
@@ -414,82 +415,81 @@ export class Rest {
         }
 */
 
-        return new Promise((resolve, reject) => {
-            const { endpoint, options } = fetchOptions;
-            const reqOptions = {
-                method: options.method?.toUpperCase() || 'GET',
-                headers: {
-                    Authorization: this.auth,
-                    'User-Agent': this.node.manager.options.userAgent
-                }
-            };
-            const url = new URL(`${this.url}${this.version}${endpoint}`);
-            if (options.headers)
-                reqOptions.headers = {
-                    ...reqOptions.headers,
-                    ...options.headers
-                };
-            if (options.params)
-                url.search = new URLSearchParams(options.params).toString();
+    return new Promise((resolve, reject) => {
+      const { endpoint, options } = fetchOptions;
+      const reqOptions = {
+        method: options.method?.toUpperCase() || "GET",
+        headers: {
+          Authorization: this.auth,
+          "User-Agent": this.node.manager.options.userAgent,
+        },
+      };
+      const url = new URL(`${this.url}${this.version}${endpoint}`);
+      if (options.headers)
+        reqOptions.headers = {
+          ...reqOptions.headers,
+          ...options.headers,
+        };
+      if (options.params)
+        url.search = new URLSearchParams(options.params).toString();
 
-            const req = request(url.toString(), reqOptions);
-            req.setTimeout(this.node.manager.options.restTimeout * 1000);
-            req.once('timeout', () => {
-                reject(
-                    `[NODE-REST] (${this.node.name}) Request Aborted timeout: ${this.node.manager.options.restTimeout}s`
-                );
-                req.destroy();
-            });
+      const req = request(url.toString(), reqOptions);
+      req.setTimeout(this.node.manager.options.restTimeout * 1000);
+      req.once("timeout", () => {
+        reject(
+          `[NODE-REST] (${this.node.name}) Request Aborted timeout: ${this.node.manager.options.restTimeout}s`
+        );
+        req.destroy();
+      });
 
-            req.once('response', (resp) => {
-                // console.log(res, res.);
-                let buffData = '';
-                resp.on('data', (chunk) => {
-                    buffData += chunk;
-                }).once('end', () => {
-                    const result = buffData.toString();
-                    // console.log("code:", res.statusCode, res.statusMessage)
-                    let d;
-                    if (
-                        !resp.statusCode ||
-                        resp.statusCode < 200 ||
-                        resp.statusCode > 299
-                    ) {
-                        try {
-                            d = JSON.parse(result);
-                            if (d.message)
-                                return reject(
-                                    `[NODE-REST] (${this.node.name}) Request failled with status code: ${resp.statusCode} message: ${d.message}`
-                                );
-                        } catch (err) {
-                            /* empty */
-                        }
-                        return reject(
-                            `[NODE-REST] (${this.node.name}) Request failled with status code: ${resp.statusCode} `
-                        );
-                    }
-                    try {
-                        d = JSON.parse(result);
-                    } catch (err) {
-                        return resolve(undefined);
-                    }
-                    resolve(d);
-                });
-            });
-
-            req.on('error', (err) => {
-                if (req.destroyed) return;
-
-                console.log(
-                    `[NODE-REST] (${this.node.name}) Error 2 rest`,
-                    err
-                );
-                reject(err);
-            });
-            if (!['GET', 'HEAD'].includes(reqOptions.method) && options.body) {
-                req.write(JSON.stringify(options.body));
+      req.once("response", (resp) => {
+        // console.log(res, res.);
+        let buffData = "";
+        resp
+          .on("data", (chunk) => {
+            buffData += chunk;
+          })
+          .once("end", () => {
+            const result = buffData.toString();
+            // console.log("code:", res.statusCode, res.statusMessage)
+            let d;
+            if (
+              !resp.statusCode ||
+              resp.statusCode < 200 ||
+              resp.statusCode > 299
+            ) {
+              try {
+                d = JSON.parse(result);
+                if (d.message)
+                  return reject(
+                    `[NODE-REST] (${this.node.name}) Request failled with status code: ${resp.statusCode} message: ${d.message}`
+                  );
+              } catch (err) {
+                /* empty */
+              }
+              return reject(
+                `[NODE-REST] (${this.node.name}) Request failled with status code: ${resp.statusCode} `
+              );
             }
-            req.end();
-        });
-    }
+            try {
+              d = JSON.parse(result);
+            } catch (err) {
+              return resolve(undefined);
+            }
+            resolve(d);
+          });
+      });
+
+      req.on("error", (err) => {
+        if (req.destroyed) return;
+
+        console.log(`[NODE-REST] (${this.node.name}) Error 2 rest`, err);
+        reject(err);
+      });
+      if (!["GET", "HEAD"].includes(reqOptions.method) && options.body) {
+        req.write(JSON.stringify(options.body));
+      }
+      req.end();
+    });
+  }
 }
