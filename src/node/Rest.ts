@@ -388,8 +388,8 @@ export class Rest {
 		const request = await fetch(url.toString(), finalFetchOptions)
 			.finally(() => clearTimeout(timeout))
 			.catch((err) => {
-                throw new Error(`[NODE-REST] (${this.node.name}) ${err.message || err || 'Unknown error'}`);
-            });
+				throw new Error(`[NODE-REST] (${this.node.name}) ${err.message || err || 'Unknown error'}`);
+			});
 
 		if (!request.ok) {
 			const response = await request
@@ -434,7 +434,7 @@ export class RestError extends Error {
 		this.status = status;
 		this.error = error;
 		this.trace = trace;
-		this.message = `[NODE-REST] (${nodeName}) ${message}`
+		this.message = `[NODE-REST] (${nodeName}) ${message}`;
 		this.path = path;
 		Object.setPrototypeOf(this, new.target.prototype);
 	}
