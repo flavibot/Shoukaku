@@ -383,7 +383,7 @@ export class Rest {
 		const request = await fetch(url.toString(), finalFetchOptions)
 			.finally(() => clearTimeout(timeout))
 			.catch((err) => {
-				throw new Error(`[NODE-REST] (${this.node.name}) ${err?.message || err || 'Unknown error'}`);
+				throw new Error(`[NODE-REST] (${this.node.name}) ${err || 'Unknown error'}`);
 			});
 
 		if (!request.ok) {
