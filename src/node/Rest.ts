@@ -381,7 +381,10 @@ export class Rest {
 			finalFetchOptions.body = JSON.stringify(options.body);
 
 		const request = await fetch(url.toString(), finalFetchOptions)
-			.finally(() => clearTimeout(timeout));
+			.finally(() => clearTimeout(timeout))
+			.catch((err) => {
+                throw new Error(`[NODE-REST] (${this.node.name}) Fetch error: ${err.message || err || 'Unknown error'}`);
+            });
 
 		if (!request.ok) {
 			const response = await request
@@ -393,7 +396,7 @@ export class Rest {
 				error: 'Unknown Error',
 				message: 'Unexpected error response from Lavalink server',
 				path: endpoint
-			});
+			}, this.node.name);
 		}
 		try {
 			return await request.json() as T;
@@ -419,14 +422,14 @@ export class RestError extends Error {
 	public trace?: string;
 	public path: string;
 
-	constructor({ timestamp, status, error, trace, message, path }: LavalinkRestError) {
-		super(`Rest request failed with response code: ${status}${message ? ` | message: ${message}` : ''}`);
+	constructor({ timestamp, status, error, trace, message, path }: LavalinkRestError, nodeName: string) {
+		super();
 		this.name = 'RestError';
 		this.timestamp = timestamp;
 		this.status = status;
 		this.error = error;
 		this.trace = trace;
-		this.message = message;
+		this.message = `[NODE-REST] (${nodeName}) ${message}`
 		this.path = path;
 		Object.setPrototypeOf(this, new.target.prototype);
 	}
