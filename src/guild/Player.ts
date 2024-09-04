@@ -453,8 +453,6 @@ export class Player extends TypedEventEmitter<PlayerEvents> {
 
 		await this.node.rest.updatePlayer(data);
 
-		if (!noReplace) this.paused = false;
-
 		if (playerOptions.filters) {
 			this.filters = { ...this.filters, ...playerOptions.filters };
 		}
