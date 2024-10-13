@@ -1,6 +1,6 @@
 {
-  "name": "shoukaku",
-  "version": "4.2.0",
+  "name": "@flavibot/shoukaku",
+  "version": "5.0.1-dev",
   "description": "A stable and updated wrapper around Lavalink",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -38,7 +38,14 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/shipgirlproject/Shoukaku.git"
+    "url": "git+https://github.com/flavibot/Shoukaku.git",
+    "directory": "packages/shoukaku"
+  },
+  "bugs": {
+    "url": "https://github.com/flavibot/Shoukaku/issues"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
     "ws": "^8.18.0"
