@@ -1,6 +1,6 @@
 {
   "name": "@flavibot/shoukaku",
-  "version": "5.0.1-dev",
+  "version": "5.0.2-dev",
   "description": "A stable and updated wrapper around Lavalink",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
