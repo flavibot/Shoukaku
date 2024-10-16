@@ -36,10 +36,7 @@
   },
   "author": "Saya",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/flavibot/Shoukaku.git"
-  },
+  "repository": "https://github.com/flavibot/Shoukaku",
   "bugs": {
     "url": "https://github.com/flavibot/Shoukaku/issues"
   },
