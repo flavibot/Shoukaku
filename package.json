@@ -38,8 +38,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/flavibot/Shoukaku.git",
-    "directory": "packages/shoukaku"
+    "url": "https://github.com/flavibot/Shoukaku.git"
   },
   "bugs": {
     "url": "https://github.com/flavibot/Shoukaku/issues"
