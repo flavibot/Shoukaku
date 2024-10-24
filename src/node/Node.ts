@@ -452,6 +452,22 @@ export class Node extends TypedEventEmitter<NodeEvents> {
 		return data.filter(results => results.status === 'fulfilled').length;
 	}
 
+	/**
+	 * Disables the node
+	 */
+	public disable(): void {
+		this.enabled = false;
+		this.disabledAt = Date.now();
+	}
+
+	/**
+	 * Enables the node
+	 */
+	public enable(): void {
+		this.enabled = true;
+		this.disabledAt = null;
+	}
+
 	private cleanupWebsocket(): void {
 		this.ws?.removeAllListeners();
 		this.ws?.close();
