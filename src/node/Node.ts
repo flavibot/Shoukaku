@@ -447,4 +447,20 @@ export class Node extends TypedEventEmitter<NodeEvents> {
 		const data = await Promise.allSettled(players.map(player => player.move()));
 		return data.filter(results => results.status === 'fulfilled').length;
 	}
+
+	/**
+	 * Disables the node
+	 */
+	public disable(): void {
+		this.enabled = false;
+		this.disabledAt = Date.now();
+	}
+
+	/**
+	 * Enables the node
+	 */
+	public enable(): void {
+		this.enabled = true;
+		this.disabledAt = null;
+	}
 }
