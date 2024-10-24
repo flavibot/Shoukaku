@@ -146,7 +146,22 @@ export class Node extends TypedEventEmitter<NodeEvents> {
      * SessionId of this Lavalink connection (not to be confused with Discord SessionId)
      */
 	public sessionId: string | null;
-
+	/**
+	 * If the node is enabled
+	 */
+	public enabled: boolean;
+	/**
+	 * The time in which the node was disabled
+	 */
+	public disabledAt: null | number;
+	/**
+     * Boolean that represents if the node has initialized once
+     */
+	protected initialized: boolean;
+	/**
+     * Boolean that represents if this connection is destroyed
+     */
+	protected destroyed: boolean;
 	/**
      * @param manager Shoukaku instance
      * @param options Options on creating this node
@@ -170,6 +185,10 @@ export class Node extends TypedEventEmitter<NodeEvents> {
 		this.info = null;
 		this.ws = null;
 		this.sessionId = null;
+		this.initialized = false;
+		this.destroyed = false;
+		this.enabled = true;
+		this.disabledAt = null;
 	}
 
 	/**
