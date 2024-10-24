@@ -140,6 +140,14 @@ export class Node extends TypedEventEmitter<NodeEvents> {
      */
 	public sessionId: string | null;
 	/**
+	 * If the node is enabled
+	 */
+	public enabled: boolean;
+	/**
+	 * The time in which the node was disabled
+	 */
+	public disabledAt: null | number;
+	/**
      * Boolean that represents if the node has initialized once
      */
 	protected initialized: boolean;
@@ -172,6 +180,8 @@ export class Node extends TypedEventEmitter<NodeEvents> {
 		this.sessionId = null;
 		this.initialized = false;
 		this.destroyed = false;
+		this.enabled = true;
+		this.disabledAt = null;
 	}
 
 	/**
