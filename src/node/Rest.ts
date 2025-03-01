@@ -348,13 +348,13 @@ export class Rest {
 	}
 
 	/**
-	 * Make a request to Lavalink
+	 * Make a request to Lavalink with retry mechanism
 	 * @param fetchOptions.endpoint Lavalink endpoint
 	 * @param fetchOptions.options Options passed to fetch
 	 * @throws `RestError` when encountering a Lavalink error response
 	 * @internal
 	 */
-	protected async fetch<T = unknown>(fetchOptions: FetchOptions) {
+	protected async fetch<T = unknown>(fetchOptions: FetchOptions, retries = 3): Promise<T | undefined> {
 		const { endpoint, options } = fetchOptions;
 		let headers = {
 			'Authorization': this.auth,
@@ -381,28 +381,33 @@ export class Rest {
 		if (![ 'GET', 'HEAD' ].includes(method) && options.body)
 			finalFetchOptions.body = JSON.stringify(options.body);
 
-		const request = await fetch(url.toString(), finalFetchOptions)
-			.finally(() => clearTimeout(timeout))
-			.catch((err) => {
-				throw new Error(`[NODE-REST] (${this.node.name}) ${err || 'Unknown error'}`);
-			});
-
-		if (!request.ok) {
-			const response = await request
-				.json()
-				.catch(() => null) as LavalinkRestError | null;
-			throw new RestError(response ?? {
-				timestamp: Date.now(),
-				status: request.status,
-				error: 'Unknown Error',
-				message: 'Unexpected error response from Lavalink server',
-				path: endpoint
-			}, this.node.name);
-		}
 		try {
+			const request = await fetch(url.toString(), finalFetchOptions)
+				.finally(() => clearTimeout(timeout))
+				.catch((err) => {
+					throw new Error(`[NODE-REST] (${this.node.name}) ${err || 'Unknown error'}`);
+				});
+
+			if (!request.ok) {
+				const response = await request
+					.json()
+					.catch(() => null) as LavalinkRestError | null;
+				throw new RestError(response ?? {
+					timestamp: Date.now(),
+					status: request.status,
+					error: 'Unknown Error',
+					message: 'Unexpected error response from Lavalink server',
+					path: endpoint
+				}, this.node.name);
+			}
 			return await request.json() as T;
-		} catch {
-			return;
+		} catch (error) {
+			if (retries > 0) {
+				console.warn(`[NODE-REST] (${this.node.name}) Request failed, retrying... (${retries} retries left)`);
+				return this.fetch(fetchOptions, retries - 1);
+			} else {
+				throw error;
+			}
 		}
 	}
 }
