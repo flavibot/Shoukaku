@@ -354,7 +354,7 @@ export class Rest {
 	 * @throws `RestError` when encountering a Lavalink error response
 	 * @internal
 	 */
-	protected async fetch<T = unknown>(fetchOptions: FetchOptions, retries = 3): Promise<T | undefined> {
+	protected async fetch<T = unknown>(fetchOptions: FetchOptions, retries = 1): Promise<T | undefined> {
 		const { endpoint, options } = fetchOptions;
 		let headers = {
 			'Authorization': this.auth,
