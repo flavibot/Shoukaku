@@ -403,7 +403,7 @@ export class Rest {
 			return await request.json() as T;
 		} catch (error) {
 			if (retries > 0) {
-				console.warn(`[NODE-REST] (${this.node.name}) Request failed, retrying... (${retries} retries left)`);
+				console.warn(`[NODE-REST] (${this.node.name}) Request failed, retrying... (${retries} retries left)`, endpoint);
 				return this.fetch(fetchOptions, retries - 1);
 			} else {
 				throw error;
