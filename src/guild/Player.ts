@@ -1,9 +1,6 @@
-// eslint-disable-next-line import-x/no-cycle
 import { OpCodes, State } from '../Constants';
-// eslint-disable-next-line import-x/no-cycle
-import { Node } from '../node/Node';
-// eslint-disable-next-line import-x/no-cycle
-import { Exception, Track, UpdatePlayerInfo, UpdatePlayerOptions } from '../node/Rest';
+import type { Node } from '../node/Node';
+import type { Exception, Track, UpdatePlayerInfo, UpdatePlayerOptions } from '../node/Rest';
 import { TypedEventEmitter } from '../Utils';
 import { Connection } from './Connection';
 
