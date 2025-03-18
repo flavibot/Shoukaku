@@ -399,6 +399,9 @@ export class Rest {
 					path: endpoint
 				}, this.node.name);
 			}
+			if (request.status === 204) {
+				return undefined;
+			}
 			return await request.json() as T;
 		} catch (error) {
 			if (retries > 0) {
