@@ -201,7 +201,12 @@ export class Connection extends EventEmitter {
 
 		this.deafened = self_deaf;
 		this.muted = self_mute;
-		this.sessionId = session_id ?? null;
+		if (this.sessionId !== session_id) {
+			this.sessionId = session_id ?? null;
+			if (this.sessionId && this.serverUpdate !== null) {
+				this.emit('connectionUpdate', VoiceState.SESSION_READY);
+			}
+		}
 		this.debug(`[Voice] <- [Discord] : State Update Received | Channel: ${this.channelId} Session ID: ${session_id} Guild: ${this.guildId}`);
 	}
 
