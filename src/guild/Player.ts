@@ -484,13 +484,21 @@ export class Player extends TypedEventEmitter<PlayerEvents> {
 	 * @internal
 	 */
 	public async sendServerUpdate(connection: Connection): Promise<void> {
+		if (!connection?.serverUpdate) {
+			console.error(`[Player] -> sendServerUpdate : No server update available for ${this.guildId}`);
+			throw new Error('No server update available');
+		}
+		if (!connection.sessionId) {
+			console.error(`[Player] -> sendServerUpdate : No session id available for ${this.guildId}`);
+			throw new Error('No session id available');
+		}
 		const playerUpdate = {
 			guildId: this.guildId,
 			playerOptions: {
 				voice: {
-					token: connection.serverUpdate!.token,
-					endpoint: connection.serverUpdate!.endpoint,
-					sessionId: connection.sessionId!
+					token: connection.serverUpdate.token,
+					endpoint: connection.serverUpdate.endpoint,
+					sessionId: connection.sessionId
 				}
 			}
 		};
