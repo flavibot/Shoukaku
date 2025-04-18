@@ -201,12 +201,12 @@ export class Connection extends EventEmitter {
 
 		this.deafened = self_deaf;
 		this.muted = self_mute;
-		if (this.sessionId !== session_id) {
-			this.sessionId = session_id ?? null;
-			if (this.sessionId && this.serverUpdate !== null) {
-				this.emit('connectionUpdate', VoiceState.SESSION_READY);
-			}
-		}
+		// if (this.sessionId !== session_id) {
+		this.sessionId = session_id ?? null;
+		// 	if (this.sessionId && this.serverUpdate !== null) {
+		// 		this.emit('connectionUpdate', VoiceState.SESSION_READY);
+		// 	}
+		// }
 		this.debug(`[Voice] <- [Discord] : State Update Received | Channel: ${this.channelId} Session ID: ${session_id} Guild: ${this.guildId}`);
 	}
 
@@ -231,7 +231,7 @@ export class Connection extends EventEmitter {
 			this.debug(`[Voice] <- [Discord] : Voice Region Moved | Old Region: ${this.lastRegion} New Region: ${this.region} Guild: ${this.guildId}`);
 		}
 
-		this.serverUpdate = data;
+		this.serverUpdate = { ...data };
 		this.emit('connectionUpdate', VoiceState.SESSION_READY);
 		this.debug(`[Voice] <- [Discord] : Server Update Received | Server: ${this.region} Guild: ${this.guildId}`);
 	}
