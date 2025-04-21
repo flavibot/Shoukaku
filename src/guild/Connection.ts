@@ -145,14 +145,24 @@ export class Connection extends EventEmitter {
 		this.debug(`[Voice] -> [Discord] : Requesting Connection | Guild: ${this.guildId}`);
 
 		const controller = new AbortController();
-		const timeout = setTimeout(() => controller.abort(), this.manager.options.voiceConnectionTimeout * 1000);
+		let timeout = setTimeout(() => controller.abort(), this.manager.options.voiceConnectionTimeout * 1000);
 
 		try {
 			const [ status ] = await once(this, 'connectionUpdate', { signal: controller.signal }) as [ VoiceState ];
 			if (status !== VoiceState.SESSION_READY) {
 				switch (status) {
 					case VoiceState.SESSION_ID_MISSING: throw new Error('The voice connection is not established due to missing session id');
-					case VoiceState.SESSION_ENDPOINT_MISSING: throw new Error('The voice connection is not established due to missing connection endpoint');
+					case VoiceState.SESSION_ENDPOINT_MISSING: {
+						clearTimeout(timeout);
+						timeout = setTimeout(() => controller.abort(), this.manager.options.voiceConnectionTimeout * 1000);
+						const [ status ] = await once(this, 'connectionUpdate', { signal: controller.signal }) as [ VoiceState ];
+						if (status !== VoiceState.SESSION_READY) {
+							switch (status) {
+								case VoiceState.SESSION_ID_MISSING: throw new Error('The voice connection is not established due to missing session id 2');
+								case VoiceState.SESSION_ENDPOINT_MISSING: throw new Error('The voice connection is not established due to missing connection endpoint');
+							}
+						}
+					}
 				}
 			}
 			this.state = State.CONNECTED;
@@ -191,7 +201,12 @@ export class Connection extends EventEmitter {
 
 		this.deafened = self_deaf;
 		this.muted = self_mute;
+		// if (this.sessionId !== session_id) {
 		this.sessionId = session_id ?? null;
+		// 	if (this.sessionId && this.serverUpdate !== null) {
+		// 		this.emit('connectionUpdate', VoiceState.SESSION_READY);
+		// 	}
+		// }
 		this.debug(`[Voice] <- [Discord] : State Update Received | Channel: ${this.channelId} Session ID: ${session_id} Guild: ${this.guildId}`);
 	}
 
@@ -216,7 +231,7 @@ export class Connection extends EventEmitter {
 			this.debug(`[Voice] <- [Discord] : Voice Region Moved | Old Region: ${this.lastRegion} New Region: ${this.region} Guild: ${this.guildId}`);
 		}
 
-		this.serverUpdate = data;
+		this.serverUpdate = { ...data };
 		this.emit('connectionUpdate', VoiceState.SESSION_READY);
 		this.debug(`[Voice] <- [Discord] : Server Update Received | Server: ${this.region} Guild: ${this.guildId}`);
 	}
