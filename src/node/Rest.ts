@@ -388,13 +388,15 @@ export class Rest {
 					throw new Error(`[NODE-REST] (${this.node.name}) ${err || 'Unknown error'}`);
 				});
 			const latency = Date.now() - start;
-			this.node.emit('rest', {
-				url: url.toString(),
-				options: fetchOptions,
-				status: request.status,
-				ok: request.ok,
-				latency,
-				retries
+			this.node.manager.emit('rest',
+				this.node.name,
+				{
+					url: url.toString(),
+					options: fetchOptions,
+					status: request.status,
+					ok: request.ok,
+					latency,
+					retries
 			});
 
 			if (!request.ok) {
