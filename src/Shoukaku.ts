@@ -3,7 +3,7 @@ import { ShoukakuDefaults, VoiceState } from './Constants';
 import { Connection } from './guild/Connection';
 import { Player } from './guild/Player';
 import { Node, NodeEvents } from './node/Node';
-import type { Rest } from './node/Rest';
+import type { FetchOptions, Rest } from './node/Rest';
 import { Constructor, mergeDefault, TypedEventEmitter } from './Utils';
 
 export interface Structures {
@@ -134,7 +134,24 @@ export type ShoukakuEvents = {
 	 * @eventProperty
 	 */
 	'raw': [name: string, json: unknown];
+	/**
+	 * Emitted when a rest request is made to Lavalink
+	 * @eventProperty
+	 */
+	'rest': [name: string, data: RestEventData];
 };
+
+/**
+ * Rest event data
+ */
+export interface RestEventData {
+	url: string;
+	options: FetchOptions;
+	status: number;
+	ok: boolean;
+	latency: number;
+	retries: number;
+}
 
 /**
  * Main Shoukaku class
@@ -215,6 +232,7 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 		node.on('close', (...args) => this.emit('close', node.name, ...args));
 		node.on('ready', (...args) => this.emit('ready', node.name, ...args));
 		node.on('raw', (...args) => this.emit('raw', node.name, ...args));
+		node.on('rest', (...args) => this.emit('rest', node.name, ...args));
 		node.once('disconnect', (...args) => this.clean(node, ...args));
 		node.connect();
 		this.nodes.set(node.name, node);
