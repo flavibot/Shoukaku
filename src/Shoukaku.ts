@@ -145,12 +145,12 @@ export type ShoukakuEvents = {
  * Rest event data
  */
 export interface RestEventData {
-    url: string;
-    options: FetchOptions;
-    status: number;
-    ok: boolean;
-    latency: number;
-    retries: number;
+	url: string;
+	options: FetchOptions;
+	status: number;
+	ok: boolean;
+	latency: number;
+	retries: number;
 }
 
 /**
