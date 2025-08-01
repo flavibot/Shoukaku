@@ -142,7 +142,7 @@ export interface SessionInfo {
 	timeout: number;
 }
 
-interface FetchOptions {
+export interface FetchOptions {
 	endpoint: string;
 	options: {
 		headers?: Record<string, string>;
@@ -380,12 +380,22 @@ export class Rest {
 		if (![ 'GET', 'HEAD' ].includes(method) && options.body)
 			finalFetchOptions.body = JSON.stringify(options.body);
 
+		const start = Date.now();
 		try {
 			const request = await fetch(url.toString(), finalFetchOptions)
 				.finally(() => clearTimeout(timeout))
 				.catch((err) => {
 					throw new Error(`[NODE-REST] (${this.node.name}) ${err || 'Unknown error'}`);
 				});
+			const latency = Date.now() - start;
+			this.node.manager.emit('rest', this.node.name, {
+				url: url.toString(),
+				options: fetchOptions,
+				status: request.status,
+				ok: request.ok,
+				latency,
+				retries
+			});
 
 			if (!request.ok) {
 				const response = await request
