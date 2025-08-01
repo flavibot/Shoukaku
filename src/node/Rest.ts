@@ -388,7 +388,7 @@ export class Rest {
 					throw new Error(`[NODE-REST] (${this.node.name}) ${err || 'Unknown error'}`);
 				});
 			const latency = Date.now() - start;
-			this.node.manager.emit('rest', this.node.name, {
+			this.node.emit('rest', {
 				url: url.toString(),
 				options: fetchOptions,
 				status: request.status,
