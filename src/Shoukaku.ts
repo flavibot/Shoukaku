@@ -274,18 +274,38 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 			const node = this.getIdealNode(connection);
 			if (!node)
 				throw new Error('Can\'t find any nodes to connect on');
-			const player = this.options.structures.player ? new this.options.structures.player(connection.guildId, node) : new Player(connection.guildId, node);
-			const onUpdate = (state: VoiceState) => {
-				if (state !== VoiceState.SESSION_READY) return;
-				void player.sendServerUpdate(connection);
-			};
-			await player.sendServerUpdate(connection);
-			connection.on('connectionUpdate', onUpdate);
-			this.players.set(player.guildId, player);
-			return player;
+			return await this.createPlayer(options.guildId, node, connection);
 		} catch (error) {
 			connection.disconnect();
 			this.connections.delete(options.guildId);
+			throw error;
+		}
+	}
+
+	public async createPlayer(guildId: string, node: Node, connection: Connection): Promise<Player> {
+		const player = this.options.structures.player ? new this.options.structures.player(guildId, node) : new Player(guildId, node);
+		const onUpdate = (state: VoiceState) => {
+			if (state !== VoiceState.SESSION_READY) return;
+			void player.sendServerUpdate(connection);
+		};
+		await player.sendServerUpdate(connection);
+		connection.on('connectionUpdate', onUpdate);
+		this.players.set(player.guildId, player);
+		return player;
+	}
+
+	public async reCreatePlayer(guildId: string, node: Node): Promise<Player> {
+		const connection = this.connections.get(guildId);
+		if (!connection) throw new Error('This guild does not have an existing connection');
+		const player = this.players.get(guildId);
+		try {
+			if (player) {
+				await player.destroy();
+			}
+			return await this.createPlayer(guildId, node, connection);
+		} catch (error) {
+			connection.disconnect();
+			this.connections.delete(guildId);
 			throw error;
 		}
 	}
