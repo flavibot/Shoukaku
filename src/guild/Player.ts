@@ -197,6 +197,10 @@ export class Player extends TypedEventEmitter<PlayerEvents> {
 	 */
 	public position: number;
 	/**
+	 * Whether the player is connected to a voice channel
+	 */
+	public connected: boolean;
+	/**
 	 * Filters on current track
 	 */
 	public filters: FilterOptions;
@@ -210,6 +214,7 @@ export class Player extends TypedEventEmitter<PlayerEvents> {
 		this.paused = false;
 		this.position = 0;
 		this.ping = 0;
+		this.connected = false;
 		this.filters = {};
 	}
 
@@ -509,9 +514,10 @@ export class Player extends TypedEventEmitter<PlayerEvents> {
 	 * Handle player update data
 	 */
 	public onPlayerUpdate(json: PlayerUpdate): void {
-		const { position, ping } = json.state;
+		const { position, ping, connected } = json.state;
 		this.position = position;
 		this.ping = ping;
+		this.connected = connected;
 		this.emit('update', json);
 	}
 
