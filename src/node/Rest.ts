@@ -407,7 +407,7 @@ export class Rest {
 					timestamp: Date.now(),
 					status: request.status,
 					error: 'Unknown Error',
-					message: `Unexpected error response from Lavalink server`,
+					message: 'Unexpected error response from Lavalink server',
 					path: endpoint
 				}, this.node.name);
 			}
