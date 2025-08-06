@@ -350,10 +350,11 @@ export class Rest {
 	 * Make a request to Lavalink with retry mechanism
 	 * @param fetchOptions.endpoint Lavalink endpoint
 	 * @param fetchOptions.options Options passed to fetch
+	 * @param maxRetry Maximum number of retries (default: 1)
 	 * @throws `RestError` when encountering a Lavalink error response
 	 * @internal
 	 */
-	protected async fetch<T = unknown>(fetchOptions: FetchOptions, retries = 1): Promise<T | undefined> {
+	protected async fetch<T = unknown>(fetchOptions: FetchOptions, maxRetry = 1, currentRetry = 0): Promise<T | undefined> {
 		const { endpoint, options } = fetchOptions;
 		let headers = {
 			'Authorization': this.auth,
@@ -395,7 +396,7 @@ export class Rest {
 					status: request.status,
 					ok: request.ok,
 					latency,
-					retries
+					retries: maxRetry - currentRetry
 				});
 
 			if (!request.ok) {
@@ -406,7 +407,7 @@ export class Rest {
 					timestamp: Date.now(),
 					status: request.status,
 					error: 'Unknown Error',
-					message: 'Unexpected error response from Lavalink server',
+					message: `Unexpected error response from Lavalink server`,
 					path: endpoint
 				}, this.node.name);
 			}
@@ -415,12 +416,14 @@ export class Rest {
 			}
 			return await request.json() as T;
 		} catch (error) {
-			if (retries > 0) {
-				console.warn(`[NODE-REST] (${this.node.name}) Request failed, retrying... (${retries} retries left)`, endpoint);
-				return this.fetch(fetchOptions, retries - 1);
-			} else {
-				throw error;
+			if (currentRetry < maxRetry) {
+				console.warn(`[NODE-REST] (${this.node.name}) Request failed, retrying... (${currentRetry + 1}/${maxRetry} retries)`, endpoint);
+				return this.fetch(fetchOptions, maxRetry, currentRetry + 1);
 			}
+			if (error instanceof Error || error instanceof RestError) {
+				error.message += ` (${currentRetry}/${maxRetry} retries)`;
+			}
+			throw error;
 		}
 	}
 }
