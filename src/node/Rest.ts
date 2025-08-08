@@ -200,12 +200,12 @@ export class Rest {
 	 * @param identifier Track ID
 	 * @returns A promise that resolves to a Lavalink response
 	 */
-	public resolve(identifier: string): Promise<LavalinkResponse | undefined> {
+	public async resolve(identifier: string): Promise<LavalinkResponse | undefined> {
 		const options = {
 			endpoint: '/loadtracks',
 			options: { params: { identifier }}
 		};
-		return this.fetch(options);
+		return await this.fetch(options);
 	}
 
 	/**
@@ -213,12 +213,12 @@ export class Rest {
 	 * @param track Encoded track
 	 * @returns Promise that resolves to a track
 	 */
-	public decode(track: string): Promise<Track | undefined> {
+	public async decode(track: string): Promise<Track | undefined> {
 		const options = {
 			endpoint: '/decodetrack',
 			options: { params: { track }}
 		};
-		return this.fetch<Track>(options);
+		return await this.fetch<Track>(options);
 	}
 
 	/**
@@ -237,12 +237,12 @@ export class Rest {
 	 * Gets the player with the specified guildId
 	 * @returns Promise that resolves to a Lavalink player
 	 */
-	public getPlayer(guildId: string): Promise<LavalinkPlayer | undefined> {
+	public async getPlayer(guildId: string): Promise<LavalinkPlayer | undefined> {
 		const options = {
 			endpoint: `/sessions/${this.sessionId}/players/${guildId}`,
 			options: {}
 		};
-		return this.fetch(options);
+		return await this.fetch<LavalinkPlayer>(options);
 	}
 
 	/**
@@ -250,7 +250,7 @@ export class Rest {
 	 * @param data SessionId from Discord
 	 * @returns Promise that resolves to a Lavalink player
 	 */
-	public updatePlayer(data: UpdatePlayerInfo): Promise<LavalinkPlayer | undefined> {
+	public async updatePlayer(data: UpdatePlayerInfo): Promise<LavalinkPlayer | undefined> {
 		const options = {
 			endpoint: `/sessions/${this.sessionId}/players/${data.guildId}`,
 			options: {
@@ -260,7 +260,7 @@ export class Rest {
 				body: data.playerOptions as Record<string, unknown>
 			}
 		};
-		return this.fetch<LavalinkPlayer>(options);
+		return await this.fetch<LavalinkPlayer>(options);
 	}
 
 	/**
@@ -281,7 +281,7 @@ export class Rest {
 	 * @param timeout Timeout to wait for resuming
 	 * @returns Promise that resolves to a Lavalink player
 	 */
-	public updateSession(resuming?: boolean, timeout?: number): Promise<SessionInfo | undefined> {
+	public async updateSession(resuming?: boolean, timeout?: number): Promise<SessionInfo | undefined> {
 		const options = {
 			endpoint: `/sessions/${this.sessionId}`,
 			options: {
@@ -290,31 +290,31 @@ export class Rest {
 				body: { resuming, timeout }
 			}
 		};
-		return this.fetch(options);
+		return await this.fetch(options);
 	}
 
 	/**
 	 * Gets the status of this node
 	 * @returns Promise that resolves to a node stats response
 	 */
-	public stats(): Promise<Stats | undefined> {
+	public async stats(): Promise<Stats | undefined> {
 		const options = {
 			endpoint: '/stats',
 			options: {}
 		};
-		return this.fetch(options);
+		return await this.fetch(options);
 	}
 
 	/**
 	 * Get routeplanner status from Lavalink
 	 * @returns Promise that resolves to a routeplanner response
 	 */
-	public getRoutePlannerStatus(): Promise<RoutePlanner | undefined> {
+	public async getRoutePlannerStatus(): Promise<RoutePlanner | undefined> {
 		const options = {
 			endpoint: '/routeplanner/status',
 			options: {}
 		};
-		return this.fetch(options);
+		return await this.fetch(options);
 	}
 
 	/**
@@ -336,14 +336,14 @@ export class Rest {
 	/**
 	 * Get Lavalink info
 	 */
-	public getLavalinkInfo(): Promise<NodeInfo | undefined> {
+	public async getLavalinkInfo(): Promise<NodeInfo | undefined> {
 		const options = {
 			endpoint: '/info',
 			options: {
 				headers: { 'Content-Type': 'application/json' }
 			}
 		};
-		return this.fetch(options);
+		return await this.fetch(options);
 	}
 
 	/**
