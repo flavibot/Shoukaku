@@ -6,7 +6,7 @@ export class Custom extends Connector {
 	// sendPacket is where your library send packets to Discord Gateway
 	public sendPacket(shardId: number, payload: any, important: boolean): void {
 		this.client.nc.publish(`voice-shard.bot.${this.getId()}.${this.client.cluster.id}.data`, JSON.stringify({
-			op: "connect-bot",
+			op: "send-ws-bot",
 			d: {
 				shardId: shardId,
 				discordData: payload.d
