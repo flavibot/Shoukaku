@@ -310,6 +310,25 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 		}
 	}
 
+	public reCreatePlayerMetadata(options: VoiceChannelOptions, node?: Node) {
+		let connection = this.connections.get(options.guildId);
+		let player = this.players.get(options.guildId);
+		if (connection || player) {
+			connection?.disconnect();
+			player?.destroy();
+			return;
+		}
+		connection = new Connection(this, options);
+		this.connections.set(connection.guildId, connection);
+		player = this.options.structures.player ? new this.options.structures.player(options.guildId, node) : new Player(options.guildId, this.getIdealNode()!);
+		const onUpdate = (state: VoiceState) => {
+			if (state !== VoiceState.SESSION_READY) return;
+			void player.sendServerUpdate(connection);
+		};
+		connection.on('connectionUpdate', onUpdate);
+		return player;
+	}
+
 	/**
      * Leaves a voice channel
      * @param guildId The id of the guild you want to delete
