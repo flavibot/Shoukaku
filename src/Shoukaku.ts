@@ -38,6 +38,10 @@ export interface NodeOption {
 	 * Name of the Lavalink node group
 	 */
 	group?: string;
+	/**
+	 * Optional session id to resume
+	 */
+	sessionId?: string;
 }
 
 export interface ShoukakuOptions {
@@ -325,6 +329,7 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 			void player.sendServerUpdate(connection);
 		};
 		connection.on('connectionUpdate', onUpdate);
+		this.players.set(player.guildId, player);
 		return player;
 	}
 
