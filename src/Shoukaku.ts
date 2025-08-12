@@ -221,14 +221,15 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 	}
 
 	/**
-     * Add a Lavalink node to the pool of available nodes
-     * @param options.name Name of this node
-     * @param options.url URL of Lavalink
-     * @param options.auth Credentials to access Lavalink
-     * @param options.secure Whether to use secure protocols or not
-     * @param options.group Group of this node
-     */
-	public addNode(options: NodeOption): void {
+	 * Add a Lavalink node to the pool of available nodes
+	 * @param options.name Name of this node
+	 * @param options.url URL of Lavalink
+	 * @param options.auth Credentials to access Lavalink
+	 * @param options.secure Whether to use secure protocols or not
+	 * @param options.group Group of this node
+	 * @param connectNow Whether to connect immediately
+	 */
+	public addNode(options: NodeOption, connectNow = true): void {
 		const node = new Node(this, options);
 		node.on('debug', (...args) => this.emit('debug', node.name, ...args));
 		node.on('reconnecting', (...args) => this.emit('reconnecting', node.name, ...args));
@@ -238,7 +239,9 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 		node.on('raw', (...args) => this.emit('raw', node.name, ...args));
 		node.on('rest', (...args) => this.emit('rest', node.name, ...args));
 		node.once('disconnect', () => this.nodes.delete(node.name));
-		node.connect().catch((error) => this.emit('error', node.name, error as Error));
+		if (connectNow) {
+			node.connect().catch((error) => this.emit('error', node.name, error as Error));
+		}
 		this.nodes.set(node.name, node);
 	}
 
