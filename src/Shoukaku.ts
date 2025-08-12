@@ -228,7 +228,7 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 	 * @param options.secure Whether to use secure protocols or not
 	 * @param options.group Group of this node
 	 */
-	public addNode(options: NodeOption): void {
+	public addNode(options: NodeOption, connectNow = true): void {
 		const node = new Node(this, options);
 		node.on('debug', (...args) => this.emit('debug', node.name, ...args));
 		node.on('reconnecting', (...args) => this.emit('reconnecting', node.name, ...args));
@@ -238,7 +238,9 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 		node.on('raw', (...args) => this.emit('raw', node.name, ...args));
 		node.on('rest', (...args) => this.emit('rest', node.name, ...args));
 		node.once('disconnect', (...args) => this.clean(node, ...args));
-		node.connect();
+		if (connectNow) {
+			node.connect();
+		}
 		this.nodes.set(node.name, node);
 	}
 
