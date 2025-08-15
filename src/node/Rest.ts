@@ -357,73 +357,69 @@ export class Rest {
 	protected async fetch<T = unknown>(fetchOptions: FetchOptions, maxRetry = 1, currentRetry = 0): Promise<T | undefined> {
 		const { endpoint, options } = fetchOptions;
 		let headers = {
-			'Authorization': this.auth,
+			Authorization: this.auth,
 			'User-Agent': this.node.manager.options.userAgent
 		};
-
 		if (options.headers) headers = { ...headers, ...options.headers };
-
-		const url = new URL(`${this.url}${endpoint}`);
-
-		if (options.params) url.search = new URLSearchParams(options.params).toString();
-
 		const abortController = new AbortController();
 		const timeout = setTimeout(() => abortController.abort(), this.node.manager.options.restTimeout * 1000);
-
 		const method = options.method?.toUpperCase() ?? 'GET';
-
+		const url = new URL(`${this.url}${endpoint}`);
 		const finalFetchOptions: FinalFetchOptions = {
 			method,
 			headers,
 			signal: abortController.signal
 		};
 
+		if (options.params) url.search = new URLSearchParams(options.params).toString();
 		if (![ 'GET', 'HEAD' ].includes(method) && options.body)
 			finalFetchOptions.body = JSON.stringify(options.body);
-
-		const start = Date.now();
 		try {
-			const request = await fetch(url.toString(), finalFetchOptions)
-				.finally(() => clearTimeout(timeout))
-				.catch((err) => {
-					throw new Error(`[NODE-REST] (${this.node.name}) ${err || 'Unknown error'}`);
-				});
+			const start = Date.now();
+			const request = await fetch(url.toString(), finalFetchOptions);
 			const latency = Date.now() - start;
-			this.node.emit('rest',
-				{
-					url: url.toString(),
-					options: fetchOptions,
-					status: request.status,
-					ok: request.ok,
-					latency,
-					retries: maxRetry - currentRetry
-				});
+			this.node.emit('rest', {
+				url: url.toString(),
+				options: fetchOptions,
+				status: request.status,
+				ok: request.ok,
+				latency,
+				retries: maxRetry - currentRetry
+			});
 
 			if (!request.ok) {
-				const response = await request
-					.json()
-					.catch(() => null) as LavalinkRestError | null;
-				throw new RestError(response ?? {
-					timestamp: Date.now(),
-					status: request.status,
-					error: 'Unknown Error',
-					message: 'Unexpected error response from Lavalink server',
-					path: endpoint
-				}, this.node.name);
+				const response = await request.json().catch(() => null) as LavalinkRestError | null;
+				throw new RestError(
+					response ?? {
+						timestamp: Date.now(),
+						status: request.status,
+						error: 'Unknown Error',
+						message: 'Unexpected error response from Lavalink server',
+						path: endpoint
+					},
+					this.node.name
+				);
 			}
+
 			if (request.status === 204) {
 				return undefined;
 			}
-			return await request.json() as T;
+
+			return (await request.json()) as T;
 		} catch (error) {
 			if (currentRetry < maxRetry) {
-				console.warn(`[NODE-REST] (${this.node.name}) Request failed, retrying... (${currentRetry + 1}/${maxRetry} retries)`, endpoint);
+				console.warn(
+					`[NODE-REST] (${this.node.name}) Request failed, retrying... (${currentRetry + 1}/${maxRetry} retries)`,
+					finalFetchOptions
+				);
 				return this.fetch(fetchOptions, maxRetry, currentRetry + 1);
 			}
 			if (error instanceof Error || error instanceof RestError) {
 				error.message += ` (${currentRetry}/${maxRetry} retries)`;
 			}
 			throw error;
+		} finally {
+			clearTimeout(timeout);
 		}
 	}
 }
