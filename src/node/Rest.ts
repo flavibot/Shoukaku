@@ -414,10 +414,19 @@ export class Rest {
 				);
 				return this.fetch(fetchOptions, maxRetry, currentRetry + 1);
 			}
-			if (error instanceof Error || error instanceof RestError) {
-				error.message += ` (${currentRetry}/${maxRetry} retries)`;
+			const retryInfo = ` (${currentRetry}/${maxRetry} retries)`;
+			if (error instanceof RestError) {
+				error.message += retryInfo;
+				throw error;
+			} else if (error instanceof Error) {
+				try {
+					error.message += retryInfo;
+					throw error;
+				} catch {
+					throw new Error(`${error.message}${retryInfo}`, { cause: error });
+				}
 			}
-			throw error;
+			throw new Error(`${String(error)}${retryInfo}`);
 		} finally {
 			clearTimeout(timeout);
 		}
