@@ -412,21 +412,16 @@ export class Rest {
 					`[NODE-REST] (${this.node.name}) Request failed, retrying... (${currentRetry + 1}/${maxRetry} retries)`,
 					finalFetchOptions
 				);
-				return this.fetch(fetchOptions, maxRetry, currentRetry + 1);
+				return await this.fetch(fetchOptions, maxRetry, currentRetry + 1);
 			}
 			const retryInfo = ` (${currentRetry}/${maxRetry} retries)`;
 			if (error instanceof RestError) {
 				error.message += retryInfo;
 				throw error;
 			} else if (error instanceof Error) {
-				try {
-					error.message += retryInfo;
-					throw error;
-				} catch {
-					throw new Error(`${error.message}${retryInfo}`, { cause: error });
-				}
+				throw new Error(`[NODE-REST] (${this.node.name}) ${error.message}${retryInfo}`);
 			}
-			throw new Error(`${String(error)}${retryInfo}`);
+			throw new Error(`[NODE-REST] (${this.node.name}) ${String(error)}${retryInfo}`);
 		} finally {
 			clearTimeout(timeout);
 		}
