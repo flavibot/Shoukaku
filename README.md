@@ -9,10 +9,8 @@
 ![NPM](https://img.shields.io/npm/l/shoukaku?style=flat-square)
 
 <p align="center">
-    <img src="https://safe.saya.moe/OlYoY5xxkMLO.png"> 
+    <img src="https://azurlane.netojuu.com/images/thumb/d/dc/ShoukakuWeddingWithoutBG.png/767px-ShoukakuWeddingWithoutBG.png"> 
 </p>
-
-> Shoukaku, from Azur Lane, drawn by: elfenlied22
 
 ### Features
 
