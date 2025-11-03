@@ -247,7 +247,7 @@ export class Node extends TypedEventEmitter<NodeEvents> {
 			});
 		};
 
-		let connectError: Error|undefined;
+		let connectError: Error | undefined;
 
 		for (this.reconnects = 0; this.reconnects < this.manager.options.reconnectTries; this.reconnects++) {
 			try {
@@ -255,7 +255,7 @@ export class Node extends TypedEventEmitter<NodeEvents> {
 				break;
 			} catch (error) {
 				this.emit('reconnecting', this.manager.options.reconnectTries - this.reconnects, this.manager.options.reconnectInterval);
-				this.emit("debug", `[Socket] -> [${this.name}] : Reconnecting in ${this.manager.options.reconnectInterval} seconds. ${this.manager.options.reconnectTries - this.reconnects} tries left`);
+				this.emit('debug', `[Socket] -> [${this.name}] : Reconnecting in ${this.manager.options.reconnectInterval} seconds. ${this.manager.options.reconnectTries - this.reconnects} tries left`);
 				connectError = error as Error;
 				await wait(this.manager.options.reconnectInterval * 1000);
 			}

@@ -216,7 +216,7 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 		node.on('ready', (...args) => this.emit('ready', node.name, ...args));
 		node.on('raw', (...args) => this.emit('raw', node.name, ...args));
 		node.once('disconnect', (...args) => this.clean(node, ...args));
-		node.connect();
+		node.connect().catch((error) => this.emit('error', node.name, error));
 		this.nodes.set(node.name, node);
 	}
 
@@ -229,6 +229,7 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 		const node = this.nodes.get(name);
 		if (!node) throw new Error('The node name you specified doesn\'t exist');
 		node.disconnect(1000, reason);
+		this.nodes.delete(name);
 	}
 
 	/**
