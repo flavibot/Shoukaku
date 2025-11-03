@@ -152,7 +152,7 @@ export class Node extends TypedEventEmitter<NodeEvents> {
      * @param options Options on creating this node
      * @param options.name Name of this node
      * @param options.url URL of Lavalink
-     * @param options.auth Credentials to access Lavalnk
+     * @param options.auth Credentials to access Lavalink
      * @param options.secure Whether to use secure protocols or not
      * @param options.group Group of this node
      */
@@ -164,7 +164,7 @@ export class Node extends TypedEventEmitter<NodeEvents> {
 		this.group = options.group;
 		this.auth = options.auth;
 		this.url = `${options.secure ? 'wss' : 'ws'}://${options.url}/v${Versions.WEBSOCKET_VERSION}/websocket`;
-		this.state = State.IDLE;
+		this.state = State.DISCONNECTED;
 		this.reconnects = 0;
 		this.stats = null;
 		this.info = null;
@@ -195,10 +195,14 @@ export class Node extends TypedEventEmitter<NodeEvents> {
 	/**
      * Connect to Lavalink
      */
-	public connect(): void {
-		if (!this.manager.id) throw new Error('UserId missing, probably your connector is misconfigured?');
+	public async connect(): Promise<void> {
+		if (!this.manager.id)
+			throw new Error('UserId missing, probably your connector is misconfigured?');
 
-		if (this.state !== State.IDLE) return;
+		if (this.state === State.CONNECTED || this.state === State.CONNECTING)
+			return;
+
+		this.cleanupWebsocket();
 
 		this.state = State.CONNECTING;
 
@@ -209,20 +213,70 @@ export class Node extends TypedEventEmitter<NodeEvents> {
 			'User-Id': this.manager.id
 		};
 
-		if (this.sessionId) {
+		if (this.sessionId && this.manager.options.resume) {
 			headers['Session-Id'] = this.sessionId;
 			this.emit('debug', `[Socket] -> [${this.name}] : Session-Id is present, attempting to resume`);
 		}
 
-		const url = new URL(this.url);
-		this.ws = new Websocket(url.toString(), { headers } as Websocket.ClientOptions);
-
 		this.emit('debug', `[Socket] -> [${this.name}] : Connecting to ${this.url} ...`);
 
-		this.ws.once('upgrade', response => this.open(response));
-		this.ws.once('close', (...args) => void this.close(...args));
-		this.ws.on('error', error => this.error(error));
-		this.ws.on('message', data => void this.message(data).catch(error => this.error(error as Error)));
+		const createConnection = () => {
+			const url = new URL(this.url);
+
+			const server = new Websocket(url.toString(), { headers } as Websocket.ClientOptions);
+
+			const cleanup = () => {
+				server.onopen = null;
+				server.onclose = null;
+				server.onerror = null;
+			};
+
+			return new Promise<Websocket>((resolve, reject) => {
+				server.onopen = () => {
+					cleanup();
+					resolve(server);
+				};
+				server.onclose = () => {
+					cleanup();
+					reject(new Error('Websocket closed before a connection was established'));
+				};
+				server.onerror = (error) => {
+					cleanup();
+					reject(new Error(`Websocket failed to connect due to: ${error.message}`));
+				};
+			});
+		};
+
+		let connectError: Error | undefined;
+
+		for (this.reconnects = 0; this.reconnects < this.manager.options.reconnectTries; this.reconnects++) {
+			try {
+				this.ws = await createConnection();
+				break;
+			} catch (error) {
+				this.emit('reconnecting', this.manager.options.reconnectTries - this.reconnects, this.manager.options.reconnectInterval);
+				this.emit('debug', `[Socket] -> [${this.name}] : Reconnecting in ${this.manager.options.reconnectInterval} seconds. ${this.manager.options.reconnectTries - this.reconnects} tries left`);
+				connectError = error as Error;
+				await wait(this.manager.options.reconnectInterval * 1000);
+			}
+		}
+
+		if (connectError) {
+			this.state = State.DISCONNECTED;
+			this.cleanupWebsocket();
+			let count = 0;
+			if (this.manager.options.moveOnDisconnect) {
+				count = await this.movePlayers();
+			}
+			this.emit('disconnect', count);
+			// Should I throw or not? :confusion:
+			throw connectError;
+		}
+
+		this.ws!.once('upgrade', response => this.open(response));
+		this.ws!.once('close', (...args) => void this.close(...args));
+		this.ws!.on('error', error => this.error(error));
+		this.ws!.on('message', data => void this.message(data).catch(error => this.error(error as Error)));
 	}
 
 	/**
@@ -332,40 +386,11 @@ export class Node extends TypedEventEmitter<NodeEvents> {
 
 		this.state = State.DISCONNECTING;
 
-		if (this.reconnects >= this.manager.options.reconnectTries) {
-			this.sessionId = null;
-
-			let count = 0;
-
-			if (this.manager.options.moveOnDisconnect) {
-				count = await this.movePlayers();
-			}
-
-			this.ws?.removeAllListeners();
-			this.ws?.close();
-			this.ws = null;
-
-			if (!this.manager.options.resume) {
-				this.sessionId = null;
-			}
-
-			this.state = State.IDLE;
-
-			this.emit('disconnect', count);
-
-			return;
+		try {
+			await this.connect();
+		} catch (error) {
+			this.emit('error', error as Error);
 		}
-
-		this.state = State.IDLE;
-
-		this.emit('reconnecting', this.manager.options.reconnectTries - this.reconnects, this.manager.options.reconnectInterval);
-		this.emit('debug', `[Socket] -> [${this.name}] : Reconnecting in ${this.manager.options.reconnectInterval} seconds. ${this.manager.options.reconnectTries - this.reconnects} tries left`);
-
-		await wait(this.manager.options.reconnectInterval * 1000);
-
-		this.reconnects++;
-
-		this.connect();
 	}
 
 	/**
@@ -406,5 +431,11 @@ export class Node extends TypedEventEmitter<NodeEvents> {
 		const players = [ ...this.manager.players.values() ];
 		const data = await Promise.allSettled(players.map(player => player.move()));
 		return data.filter(results => results.status === 'fulfilled').length;
+	}
+
+	private cleanupWebsocket(): void {
+		this.ws?.removeAllListeners();
+		this.ws?.close();
+		this.ws = null;
 	}
 }
