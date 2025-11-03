@@ -1,5 +1,5 @@
 import { ShoukakuDefaults, VoiceState } from './Constants';
-import { Node} from './node/Node';
+import { Node } from './node/Node';
 import { Connector } from './connectors/Connector';
 import { Constructor, mergeDefault, TypedEventEmitter } from './Utils';
 import { Player } from './guild/Player';
