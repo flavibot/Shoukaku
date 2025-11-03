@@ -1,17 +1,8 @@
-import { Connector, ConnectorOptions } from './connectors/Connector';
-import { ShoukakuDefaults } from './Constants';
+import type { Connector } from './connectors/Connector';
+import { ShoukakuDefaults, VoiceState } from './Constants';
 import { Connection } from './guild/Connection';
-import { ShoukakuError } from './model/Errors';
-import type { Events } from './model/Library';
-import {
-	PlayerUpdate,
-	TrackEndEvent,
-	TrackExceptionEvent,
-	TrackStartEvent,
-	TrackStuckEvent,
-	WebSocketClosedEvent
-} from './model/Player';
-import { Node } from './node/Node';
+import { Player } from './guild/Player';
+import { Node, NodeEvents } from './node/Node';
 import type { Rest } from './node/Rest';
 import { Constructor, mergeDefault, TypedEventEmitter } from './Utils';
 
@@ -20,6 +11,10 @@ export interface Structures {
 	 * A custom structure that extends the Rest class
 	 */
 	rest?: Constructor<Rest>;
+	/**
+	 * A custom structure that extends the Player class
+	 */
+	player?: Constructor<Player>;
 }
 
 export interface NodeOption {
@@ -45,22 +40,7 @@ export interface NodeOption {
 	group?: string;
 }
 
-export interface RequiredOptions {
-	/**
-	 * The user id of the bot where this client will connect on
-	 */
-	userId: string;
-	/**
-	 * List of lavalink nodes to use
-	 */
-	nodes: NodeOption[];
-	/**
-	 * Library connector for Discord Websocket
-	 */
-	connectorOptions: ConnectorOptions;
-}
-
-export interface OptionalOptions {
+export interface ShoukakuOptions {
 	/**
 	 * Whether to resume a connection on disconnect to Lavalink (Server Side) (Note: DOES NOT RESUME WHEN THE LAVALINK SERVER DIES)
 	 */
@@ -69,6 +49,10 @@ export interface OptionalOptions {
 	 * Time to wait before lavalink starts to destroy the players of the disconnected client
 	 */
 	resumeTimeout?: number;
+	/**
+	 * Whether to resume the players by doing it in the library side (Client Side) (Note: TRIES TO RESUME REGARDLESS OF WHAT HAPPENED ON A LAVALINK SERVER)
+	 */
+	resumeByLibrary?: boolean;
 	/**
 	 * Number of times to try and reconnect to Lavalink before giving up
 	 */
@@ -100,7 +84,7 @@ export interface OptionalOptions {
 	/**
 	 * Node Resolver to use if you want to customize it
 	 */
-	nodeResolver?: (nodes: Node[], connection?: Connection) => Node | undefined;
+	nodeResolver?: (nodes: Map<string, Node>, connection?: Connection) => Node | undefined;
 }
 
 export interface VoiceChannelOptions {
@@ -109,7 +93,6 @@ export interface VoiceChannelOptions {
 	channelId: string;
 	deaf?: boolean;
 	mute?: boolean;
-	node?: Node;
 }
 
 // Interfaces are not final, but types are, and therefore has an index signature
@@ -120,48 +103,43 @@ export type ShoukakuEvents = {
 	 * Emitted when reconnect tries are occurring and how many tries are left
 	 * @eventProperty
 	 */
-	[Events.Reconnecting]: [node: Node, reconnectsLeft: number, reconnectInterval: number];
+	'reconnecting': [name: string, reconnectsLeft: number, reconnectInterval: number];
 	/**
 	 * Emitted when data useful for debugging is produced
 	 * @eventProperty
 	 */
-	[Events.Debug]: [info: string];
+	'debug': [name: string, info: string];
 	/**
 	 * Emitted when an error occurs
 	 * @eventProperty
 	 */
-	[Events.Error]: [node: Node | NodeOption, error: Error];
+	'error': [name: string, error: Error];
 	/**
 	 * Emitted when Shoukaku is ready to receive operations
 	 * @eventProperty
 	 */
-	[Events.Ready]: [node: Node, lavalinkResume: boolean];
+	'ready': [name: string, lavalinkResume: boolean, libraryResume: boolean];
 	/**
-	 * Emitted when a websocket connection to Lavalink is closed
+	 * Emitted when a websocket connection to Lavalink closes
 	 * @eventProperty
 	 */
-	[Events.Close]: [node: Node, code: number, reason: string];
+	'close': [name: string, code: number, reason: string];
 	/**
-	 * Emitted when a websocket connection to Lavalink is Disconnected
+	 * Emitted when a websocket connection to Lavalink disconnects
 	 * @eventProperty
 	 */
-	[Events.Disconnect]: [node: Node];
+	'disconnect': [name: string, count: number];
 	/**
-	 * Emitted when a player update event was received from lavalink
+	 * Emitted when a raw message is received from Lavalink
 	 * @eventProperty
 	 */
-	[Events.PlayerUpdate]: [node: Node, data: PlayerUpdate];
-	/**
-	 * Emitted when a player event was received from lavalink
-	 * @eventProperty
-	 */
-	[Events.PlayerEvent]: [node: Node, data: TrackStartEvent | TrackEndEvent | TrackStuckEvent | TrackExceptionEvent | WebSocketClosedEvent];
+	'raw': [name: string, json: unknown];
 };
 
 /**
  * Main Shoukaku class
  */
-export class Shoukaku extends TypedEventEmitter<Events, ShoukakuEvents> {
+export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 	/**
 	 * Discord library connector
 	 */
@@ -169,70 +147,47 @@ export class Shoukaku extends TypedEventEmitter<Events, ShoukakuEvents> {
 	/**
 	 * Shoukaku options
 	 */
-	public readonly options: Required<OptionalOptions>;
+	public readonly options: Required<ShoukakuOptions>;
 	/**
 	 * Connected Lavalink nodes
 	 */
-	public readonly nodes: Node[];
+	public readonly nodes: Map<string, Node>;
 	/**
 	 * Voice connections being handled
 	 */
-	public readonly connections: Connection[];
+	public readonly connections: Map<string, Connection>;
 	/**
-	 * The user id of the user this instance is using
+	 * Players being handled
 	 */
-	public readonly userId: string;
+	public readonly players: Map<string, Player>;
 	/**
-	 * @param required Required options for shoukaku to function
-	 * @param required.userId The user id of the user this instance will connect to
-	 * @param required.nodes List of initial nodes that the library will try to connect to
-	 * @param required.connectorOptions Options of the connector to communicate with Discord Websocket
-	 * @param optional Optional options to pass to create this Shoukaku instance
-	 * @param optional.resume Whether to resume a connection on disconnect to Lavalink (Server Side) (Note: DOES NOT RESUME WHEN THE LAVALINK SERVER DIES)
-	 * @param optional.resumeTimeout Time to wait before lavalink starts to destroy the players of the disconnected client
-	 * @param optional.resumeByLibrary Whether to resume the players by doing it in the library side (Client Side) (Note: TRIES TO RESUME REGARDLESS OF WHAT HAPPENED ON A LAVALINK SERVER)
-	 * @param optional.reconnectTries Number of times to try and reconnect to Lavalink before giving up
-	 * @param optional.reconnectInterval Timeout before trying to reconnect
-	 * @param optional.restTimeout Time to wait for a response from the Lavalink REST API before giving up
-	 * @param optional.moveOnDisconnect Whether to move players to a different Lavalink node when a node disconnects
-	 * @param optional.userAgent User Agent to use when making requests to Lavalink
-	 * @param optional.structures Custom structures for shoukaku to use
-	 * @param optional.nodeResolver Used if you have custom lavalink node resolving
+	 * Shoukaku instance identifier
 	 */
-	constructor(required: RequiredOptions, optional: OptionalOptions = {}) {
+	public id: string | null;
+	/**
+	 * @param connector A Discord library connector
+	 * @param nodes An array that conforms to the NodeOption type that specifies nodes to connect to
+	 * @param options Options to pass to create this Shoukaku instance
+	 * @param options.resume Whether to resume a connection on disconnect to Lavalink (Server Side) (Note: DOES NOT RESUME WHEN THE LAVALINK SERVER DIES)
+	 * @param options.resumeTimeout Time to wait before lavalink starts to destroy the players of the disconnected client
+	 * @param options.resumeByLibrary Whether to resume the players by doing it in the library side (Client Side) (Note: TRIES TO RESUME REGARDLESS OF WHAT HAPPENED ON A LAVALINK SERVER)
+	 * @param options.reconnectTries Number of times to try and reconnect to Lavalink before giving up
+	 * @param options.reconnectInterval Timeout before trying to reconnect
+	 * @param options.restTimeout Time to wait for a response from the Lavalink REST API before giving up
+	 * @param options.moveOnDisconnect Whether to move players to a different Lavalink node when a node disconnects
+	 * @param options.userAgent User Agent to use when making requests to Lavalink
+	 * @param options.structures Custom structures for shoukaku to use
+	 * @param options.nodeResolver Used if you have custom lavalink node resolving
+	 */
+	constructor(connector: Connector, nodes: NodeOption[], options: ShoukakuOptions = {}) {
 		super();
-		this.connector = new Connector(this, required.connectorOptions);
-		this.options = mergeDefault<OptionalOptions>(ShoukakuDefaults, optional);
-		this.nodes = [];
-		this.connections = [];
-		this.userId = required.userId;
-
-		for (const option of required.nodes) {
-			this.nodes.push(new Node(this, option));
-		}
-	}
-
-	/**
-	 * @returns The amount of cached player count
-	 */
-	public getPlayerCount(): number {
-		let players = 0;
-		for (const node of this.nodes.values()) {
-			players += node.stats?.players ?? 0;
-		}
-		return players;
-	}
-
-	/**
-	 * @returns The latest player count being handled
-	 */
-	public async fetchPlayerCount(): Promise<number> {
-		let players = 0;
-		for (const node of this.nodes.values()) {
-			const player = await node.rest.getPlayers();
-			players += player.length;
-		}
-		return players;
+		this.connector = connector.set(this);
+		this.options = mergeDefault<ShoukakuOptions>(ShoukakuDefaults, options);
+		this.nodes = new Map();
+		this.connections = new Map();
+		this.players = new Map();
+		this.id = null;
+		this.connector.listen(nodes);
 	}
 
 	/**
@@ -245,36 +200,24 @@ export class Shoukaku extends TypedEventEmitter<Events, ShoukakuEvents> {
 	}
 
 	/**
-	 * Connects every node that shoukaku manages if it's disconnected
-	 */
-	public async connect(): Promise<void> {
-		await Promise.all(this.nodes.map(node => node.connect()));
-	}
-
-	/**
-	 * Connects a specific node shoukaku manages if it's disconnected
-	 * @param name Node name to connect
-	 */
-	public async connectNodeNamed(name: string): Promise<void> {
-		const node = this.nodes.find(n => n.name === name);
-
-		await node?.connect();
-	}
-
-	/**
-	 * Add a Lavalink node to the pool of available nodes then tries to connect it
+	 * Add a Lavalink node to the pool of available nodes
 	 * @param options.name Name of this node
 	 * @param options.url URL of Lavalink
 	 * @param options.auth Credentials to access Lavalnk
 	 * @param options.secure Whether to use secure protocols or not
 	 * @param options.group Group of this node
 	 */
-	public async addNode(options: NodeOption): Promise<void> {
+	public addNode(options: NodeOption): void {
 		const node = new Node(this, options);
-
-		await node.connect();
-
-		this.nodes.push(node);
+		node.on('debug', (...args) => this.emit('debug', node.name, ...args));
+		node.on('reconnecting', (...args) => this.emit('reconnecting', node.name, ...args));
+		node.on('error', (...args) => this.emit('error', node.name, ...args));
+		node.on('close', (...args) => this.emit('close', node.name, ...args));
+		node.on('ready', (...args) => this.emit('ready', node.name, ...args));
+		node.on('raw', (...args) => this.emit('raw', node.name, ...args));
+		node.once('disconnect', (...args) => this.clean(node, ...args));
+		node.connect();
+		this.nodes.set(node.name, node);
 	}
 
 	/**
@@ -283,14 +226,9 @@ export class Shoukaku extends TypedEventEmitter<Events, ShoukakuEvents> {
 	 * @param reason Reason of removing the node
 	 */
 	public removeNode(name: string, reason = 'Remove node executed'): void {
-		const index = this.nodes.findIndex(n => n.name === name);
-
-		if (index === -1)
-			throw new ShoukakuError<{ name: string; available: string[] }>({ name, available: this.nodes.map(node => node.name) }, 'The node you are disconnecting from don\'t exist');
-
-		const node = this.nodes.splice(index, 1)[0];
-
-		node?.destroy(1000, reason);
+		const node = this.nodes.get(name);
+		if (!node) throw new Error('The node name you specified doesn\'t exist');
+		node.disconnect(1000, reason);
 	}
 
 	/**
@@ -300,51 +238,37 @@ export class Shoukaku extends TypedEventEmitter<Events, ShoukakuEvents> {
 	 * @param options.channelId ChannelId of the voice channel you want to connect to
 	 * @param options.deaf Optional boolean value to specify whether to deafen or undeafen the current bot user
 	 * @param options.mute Optional boolean value to specify whether to mute or unmute the current bot user
-	 * @returns A weak reference to the connection, where you can create a new basic player by passing it to the class
+	 * @returns The created player
 	 */
-	public async joinVoiceChannel(options: VoiceChannelOptions): Promise<WeakRef<Connection>> {
-		if (this.connections.some(conn => conn.guildId === options.guildId))
-			throw new ShoukakuError<VoiceChannelOptions>(options, 'This guild you are connecting to already have an existing connection');
-
+	public async joinVoiceChannel(options: VoiceChannelOptions): Promise<Player> {
+		if (this.connections.has(options.guildId))
+			throw new Error('This guild already have an existing connection');
 		const connection = new Connection(this, options);
-
-		this.connections.push(connection);
-
+		this.connections.set(connection.guildId, connection);
 		try {
 			await connection.connect();
 		} catch (error) {
-			this.deleteConnection(options.guildId);
+			this.connections.delete(options.guildId);
 			throw error;
 		}
-
-		const cleanup = () => {
-			connection.disconnect();
-			this.deleteConnection(options.guildId);
-		};
-
-		const node = options.node ?? this.getIdealNode(connection);
-
-		if (!node) {
-			cleanup();
-			throw new ShoukakuError<VoiceChannelOptions>(options, 'There\'s no node available to connect to');
-		}
-
 		try {
-			await node.rest.updatePlayer(options.guildId, {
-				voice: {
-					token: connection.serverUpdate!.token,
-					endpoint: connection.serverUpdate!.endpoint,
-					sessionId: connection.sessionId!
-				}
-			});
+			const node = this.getIdealNode(connection);
+			if (!node)
+				throw new Error('Can\'t find any nodes to connect on');
+			const player = this.options.structures.player ? new this.options.structures.player(connection.guildId, node) : new Player(connection.guildId, node);
+			const onUpdate = (state: VoiceState) => {
+				if (state !== VoiceState.SESSION_READY) return;
+				void player.sendServerUpdate(connection);
+			};
+			await player.sendServerUpdate(connection);
+			connection.on('connectionUpdate', onUpdate);
+			this.players.set(player.guildId, player);
+			return player;
 		} catch (error) {
-			cleanup();
+			connection.disconnect();
+			this.connections.delete(options.guildId);
 			throw error;
 		}
-
-		node.connections.add(connection);
-
-		return new WeakRef(connection);
 	}
 
 	/**
@@ -352,11 +276,20 @@ export class Shoukaku extends TypedEventEmitter<Events, ShoukakuEvents> {
 	 * @param guildId The id of the guild you want to delete
 	 * @returns The destroyed / disconnected player or undefined if none
 	 */
-	public leaveVoiceChannel(guildId: string): void {
-		const connection = this.connections.find(conn => conn.guildId === guildId);
-		connection?.disconnect();
-
-		this.deleteConnection(guildId);
+	public async leaveVoiceChannel(guildId: string): Promise<void> {
+		const connection = this.connections.get(guildId);
+		if (connection) {
+			connection.disconnect();
+			this.connections.delete(guildId);
+		}
+		const player = this.players.get(guildId);
+		if (player) {
+			try {
+				await player.destroy();
+			} catch { /* empty */ }
+			player.clean();
+			this.players.delete(guildId);
+		}
 	}
 
 	/**
@@ -366,35 +299,39 @@ export class Shoukaku extends TypedEventEmitter<Events, ShoukakuEvents> {
 	 * @throws {@link Error} When guild does not have an existing connection, or could not be moved
 	 * @returns The moved player
 	 */
-	public moveVoiceChannel(guildId: string, channelId: string) {
-		const connection = this.connections.find(conn => conn.guildId === guildId);
-
+	public async moveVoiceChannel(guildId: string, channelId: string) {
+		const connection = this.connections.get(guildId);
 		if (!connection)
-			throw new ShoukakuError<{ guildId: string; channelId: string }>({ guildId, channelId }, 'This guild don\'t have an existing connection');
+			throw new Error('This guild does not have an existing connection');
 
 		if (connection.channelId === channelId) return;
 
-		connection.setStateUpdate({
-			session_id: connection.sessionId!,
-			channel_id: channelId,
-			self_deaf: connection.deafened,
-			self_mute: connection.muted
-		});
+		try {
+			connection.setStateUpdate({
+				session_id: connection.sessionId!,
+				channel_id: channelId,
+				self_deaf: connection.deafened,
+				self_mute: connection.muted
+			});
+			await connection.connect();
 
-		connection.sendVoiceUpdate();
+			// player should get updated automagically as connectionUpdate is fired
+			return this.players.get(guildId);
+		} catch (error) {
+			throw new Error(`Could not move to new voice channel with id ${channelId}`, { cause: error });
+		}
 	}
 
 	/**
-	 * Deletes a connection from array
-	 * @param guildId
+	 * Cleans the disconnected lavalink node
+	 * @param node The node to clean
+	 * @param args Additional arguments for Shoukaku to emit
+	 * @returns A Lavalink node or undefined
 	 * @internal
-	 * @private
 	 */
-	private deleteConnection(guildId: string): Connection | undefined {
-		const index = this.connections.findIndex(conn => conn.guildId === guildId);
-
-		if (index === -1) return;
-
-		return this.connections.splice(index, 1)[0];
+	private clean(node: Node, ...args: NodeEvents['disconnect']): void {
+		node.removeAllListeners();
+		this.nodes.delete(node.name);
+		this.emit('disconnect', node.name, ...args);
 	}
 }
