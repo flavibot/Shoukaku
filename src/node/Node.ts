@@ -152,7 +152,7 @@ export class Node extends TypedEventEmitter<NodeEvents> {
      * @param options Options on creating this node
      * @param options.name Name of this node
      * @param options.url URL of Lavalink
-     * @param options.auth Credentials to access Lavalnk
+     * @param options.auth Credentials to access Lavalink
      * @param options.secure Whether to use secure protocols or not
      * @param options.group Group of this node
      */

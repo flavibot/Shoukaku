@@ -1,5 +1,5 @@
 import { ShoukakuDefaults, VoiceState } from './Constants';
-import { Node, NodeEvents } from './node/Node';
+import { Node} from './node/Node';
 import { Connector } from './connectors/Connector';
 import { Constructor, mergeDefault, TypedEventEmitter } from './Utils';
 import { Player } from './guild/Player';
@@ -203,7 +203,7 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
      * Add a Lavalink node to the pool of available nodes
      * @param options.name Name of this node
      * @param options.url URL of Lavalink
-     * @param options.auth Credentials to access Lavalnk
+     * @param options.auth Credentials to access Lavalink
      * @param options.secure Whether to use secure protocols or not
      * @param options.group Group of this node
      */
@@ -215,8 +215,8 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 		node.on('close', (...args) => this.emit('close', node.name, ...args));
 		node.on('ready', (...args) => this.emit('ready', node.name, ...args));
 		node.on('raw', (...args) => this.emit('raw', node.name, ...args));
-		node.once('disconnect', (...args) => this.clean(node, ...args));
-		node.connect().catch((error) => this.emit('error', node.name, error));
+		node.once('disconnect', () => this.nodes.delete(node.name));
+		node.connect().catch((error) => this.emit('error', node.name, error as Error));
 		this.nodes.set(node.name, node);
 	}
 
@@ -291,18 +291,5 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 			player.clean();
 			this.players.delete(guildId);
 		}
-	}
-
-	/**
-     * Cleans the disconnected lavalink node
-     * @param node The node to clean
-     * @param args Additional arguments for Shoukaku to emit
-     * @returns A Lavalink node or undefined
-     * @internal
-     */
-	private clean(node: Node, ...args: NodeEvents['disconnect']): void {
-		node.removeAllListeners();
-		this.nodes.delete(node.name);
-		this.emit('disconnect', node.name, ...args);
 	}
 }
