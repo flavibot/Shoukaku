@@ -5,7 +5,7 @@ export enum State {
 	CONNECTING,
 	CONNECTED,
 	DISCONNECTING,
-	IDLE
+	DISCONNECTED
 }
 
 export enum VoiceState {
