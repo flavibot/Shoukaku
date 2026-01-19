@@ -200,12 +200,12 @@ export class Rest {
 	 * @param identifier Track ID
 	 * @returns A promise that resolves to a Lavalink response
 	 */
-	public resolve(identifier: string): Promise<LavalinkResponse | undefined> {
+	public async resolve(identifier: string): Promise<LavalinkResponse | undefined> {
 		const options = {
 			endpoint: '/loadtracks',
 			options: { params: { identifier }}
 		};
-		return this.fetch(options);
+		return await this.fetch(options);
 	}
 
 	/**
@@ -213,12 +213,12 @@ export class Rest {
 	 * @param track Encoded track
 	 * @returns Promise that resolves to a track
 	 */
-	public decode(track: string): Promise<Track | undefined> {
+	public async decode(track: string): Promise<Track | undefined> {
 		const options = {
 			endpoint: '/decodetrack',
 			options: { params: { track }}
 		};
-		return this.fetch<Track>(options);
+		return await this.fetch<Track>(options);
 	}
 
 	/**
@@ -237,12 +237,12 @@ export class Rest {
 	 * Gets the player with the specified guildId
 	 * @returns Promise that resolves to a Lavalink player
 	 */
-	public getPlayer(guildId: string): Promise<LavalinkPlayer | undefined> {
+	public async getPlayer(guildId: string): Promise<LavalinkPlayer | undefined> {
 		const options = {
 			endpoint: `/sessions/${this.sessionId}/players/${guildId}`,
 			options: {}
 		};
-		return this.fetch(options);
+		return await this.fetch<LavalinkPlayer>(options);
 	}
 
 	/**
@@ -250,7 +250,7 @@ export class Rest {
 	 * @param data SessionId from Discord
 	 * @returns Promise that resolves to a Lavalink player
 	 */
-	public updatePlayer(data: UpdatePlayerInfo): Promise<LavalinkPlayer | undefined> {
+	public async updatePlayer(data: UpdatePlayerInfo): Promise<LavalinkPlayer | undefined> {
 		const options = {
 			endpoint: `/sessions/${this.sessionId}/players/${data.guildId}`,
 			options: {
@@ -260,7 +260,7 @@ export class Rest {
 				body: data.playerOptions as Record<string, unknown>
 			}
 		};
-		return this.fetch<LavalinkPlayer>(options);
+		return await this.fetch<LavalinkPlayer>(options);
 	}
 
 	/**
@@ -281,7 +281,7 @@ export class Rest {
 	 * @param timeout Timeout to wait for resuming
 	 * @returns Promise that resolves to a Lavalink player
 	 */
-	public updateSession(resuming?: boolean, timeout?: number): Promise<SessionInfo | undefined> {
+	public async updateSession(resuming?: boolean, timeout?: number): Promise<SessionInfo | undefined> {
 		const options = {
 			endpoint: `/sessions/${this.sessionId}`,
 			options: {
@@ -290,31 +290,31 @@ export class Rest {
 				body: { resuming, timeout }
 			}
 		};
-		return this.fetch(options);
+		return await this.fetch(options);
 	}
 
 	/**
 	 * Gets the status of this node
 	 * @returns Promise that resolves to a node stats response
 	 */
-	public stats(): Promise<Stats | undefined> {
+	public async stats(): Promise<Stats | undefined> {
 		const options = {
 			endpoint: '/stats',
 			options: {}
 		};
-		return this.fetch(options);
+		return await this.fetch(options);
 	}
 
 	/**
 	 * Get routeplanner status from Lavalink
 	 * @returns Promise that resolves to a routeplanner response
 	 */
-	public getRoutePlannerStatus(): Promise<RoutePlanner | undefined> {
+	public async getRoutePlannerStatus(): Promise<RoutePlanner | undefined> {
 		const options = {
 			endpoint: '/routeplanner/status',
 			options: {}
 		};
-		return this.fetch(options);
+		return await this.fetch(options);
 	}
 
 	/**
@@ -336,14 +336,14 @@ export class Rest {
 	/**
 	 * Get Lavalink info
 	 */
-	public getLavalinkInfo(): Promise<NodeInfo | undefined> {
+	public async getLavalinkInfo(): Promise<NodeInfo | undefined> {
 		const options = {
 			endpoint: '/info',
 			options: {
 				headers: { 'Content-Type': 'application/json' }
 			}
 		};
-		return this.fetch(options);
+		return await this.fetch(options);
 	}
 
 	/**
@@ -354,76 +354,76 @@ export class Rest {
 	 * @throws `RestError` when encountering a Lavalink error response
 	 * @internal
 	 */
-	protected async fetch<T = unknown>(fetchOptions: FetchOptions, maxRetry = 1, currentRetry = 0): Promise<T | undefined> {
+	protected async fetch<T = unknown>(fetchOptions: FetchOptions, maxRetry = 0, currentRetry = 0): Promise<T | undefined> {
 		const { endpoint, options } = fetchOptions;
 		let headers = {
-			'Authorization': this.auth,
+			Authorization: this.auth,
 			'User-Agent': this.node.manager.options.userAgent
 		};
-
 		if (options.headers) headers = { ...headers, ...options.headers };
-
-		const url = new URL(`${this.url}${endpoint}`);
-
-		if (options.params) url.search = new URLSearchParams(options.params).toString();
-
 		const abortController = new AbortController();
 		const timeout = setTimeout(() => abortController.abort(), this.node.manager.options.restTimeout * 1000);
-
 		const method = options.method?.toUpperCase() ?? 'GET';
-
+		const url = new URL(`${this.url}${endpoint}`);
 		const finalFetchOptions: FinalFetchOptions = {
 			method,
 			headers,
 			signal: abortController.signal
 		};
 
+		if (options.params) url.search = new URLSearchParams(options.params).toString();
 		if (![ 'GET', 'HEAD' ].includes(method) && options.body)
 			finalFetchOptions.body = JSON.stringify(options.body);
-
-		const start = Date.now();
 		try {
-			const request = await fetch(url.toString(), finalFetchOptions)
-				.finally(() => clearTimeout(timeout))
-				.catch((err) => {
-					throw new Error(`[NODE-REST] (${this.node.name}) ${err || 'Unknown error'}`);
-				});
+			const start = Date.now();
+			const request = await fetch(url.toString(), finalFetchOptions);
 			const latency = Date.now() - start;
-			this.node.emit('rest',
-				{
-					url: url.toString(),
-					options: fetchOptions,
-					status: request.status,
-					ok: request.ok,
-					latency,
-					retries: maxRetry - currentRetry
-				});
+			this.node.emit('rest', {
+				url: url.toString(),
+				options: fetchOptions,
+				status: request.status,
+				ok: request.ok,
+				latency,
+				retries: maxRetry - currentRetry
+			});
 
 			if (!request.ok) {
-				const response = await request
-					.json()
-					.catch(() => null) as LavalinkRestError | null;
-				throw new RestError(response ?? {
-					timestamp: Date.now(),
-					status: request.status,
-					error: 'Unknown Error',
-					message: 'Unexpected error response from Lavalink server',
-					path: endpoint
-				}, this.node.name);
+				const response = await request.json().catch(() => null) as LavalinkRestError | null;
+				throw new RestError(
+					response ?? {
+						timestamp: Date.now(),
+						status: request.status,
+						error: 'Unknown Error',
+						message: 'Unexpected error response from Lavalink server',
+						path: endpoint
+					},
+					this.node.name
+				);
 			}
+
 			if (request.status === 204) {
 				return undefined;
 			}
-			return await request.json() as T;
+
+			return (await request.json()) as T;
 		} catch (error) {
 			if (currentRetry < maxRetry) {
-				console.warn(`[NODE-REST] (${this.node.name}) Request failed, retrying... (${currentRetry + 1}/${maxRetry} retries)`, endpoint);
-				return this.fetch(fetchOptions, maxRetry, currentRetry + 1);
+				console.warn(
+					`[NODE-REST] (${this.node.name}) Request failed, retrying... (${currentRetry + 1}/${maxRetry} retries)`,
+					finalFetchOptions
+				);
+				return await this.fetch(fetchOptions, maxRetry, currentRetry + 1);
 			}
-			if (error instanceof Error || error instanceof RestError) {
-				error.message += ` (${currentRetry}/${maxRetry} retries)`;
+			const retryInfo = ` (${currentRetry}/${maxRetry} retries)`;
+			if (error instanceof RestError) {
+				error.message += retryInfo;
+				throw error;
+			} else if (error instanceof Error) {
+				throw new Error(`[NODE-REST] (${this.node.name}) ${error.message}${retryInfo}`);
 			}
-			throw error;
+			throw new Error(`[NODE-REST] (${this.node.name}) ${String(error)}${retryInfo}`);
+		} finally {
+			clearTimeout(timeout);
 		}
 	}
 }

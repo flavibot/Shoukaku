@@ -38,6 +38,10 @@ export interface NodeOption {
 	 * Name of the Lavalink node group
 	 */
 	group?: string;
+	/**
+	 * Optional session id to resume
+	 */
+	sessionId?: string;
 }
 
 export interface ShoukakuOptions {
@@ -224,7 +228,7 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 	 * @param options.secure Whether to use secure protocols or not
 	 * @param options.group Group of this node
 	 */
-	public addNode(options: NodeOption): void {
+	public addNode(options: NodeOption, connectNow = true): void {
 		const node = new Node(this, options);
 		node.on('debug', (...args) => this.emit('debug', node.name, ...args));
 		node.on('reconnecting', (...args) => this.emit('reconnecting', node.name, ...args));
@@ -234,7 +238,9 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 		node.on('raw', (...args) => this.emit('raw', node.name, ...args));
 		node.on('rest', (...args) => this.emit('rest', node.name, ...args));
 		node.once('disconnect', (...args) => this.clean(node, ...args));
-		node.connect();
+		if (connectNow) {
+			node.connect();
+		}
 		this.nodes.set(node.name, node);
 	}
 
@@ -307,6 +313,26 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 			this.connections.delete(guildId);
 			throw error;
 		}
+	}
+
+	public reCreatePlayerMetadata(options: VoiceChannelOptions, node?: Node) {
+		let connection = this.connections.get(options.guildId);
+		let player = this.players.get(options.guildId);
+		if (connection || player) {
+			connection?.disconnect();
+			player?.destroy();
+			return;
+		}
+		connection = new Connection(this, options);
+		this.connections.set(connection.guildId, connection);
+		player = this.options.structures.player ? new this.options.structures.player(options.guildId, node) : new Player(options.guildId, this.getIdealNode()!);
+		const onUpdate = (state: VoiceState) => {
+			if (state !== VoiceState.SESSION_READY) return;
+			void player.sendServerUpdate(connection);
+		};
+		connection.on('connectionUpdate', onUpdate);
+		this.players.set(player.guildId, player);
+		return player;
 	}
 
 	/**
