@@ -2,7 +2,7 @@ import { ShoukakuDefaults, VoiceState } from './Constants';
 import { Connector } from './connectors/Connector';
 import { Connection } from './guild/Connection';
 import { Player } from './guild/Player';
-import { Node, NodeEvents } from './node/Node';
+import { Node } from './node/Node';
 import type { FetchOptions, Rest } from './node/Rest';
 import { Constructor, mergeDefault, TypedEventEmitter } from './Utils';
 
@@ -322,7 +322,7 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 		let player = this.players.get(options.guildId);
 		if (connection || player) {
 			connection?.disconnect();
-			player?.destroy();
+			void player?.destroy();
 			return;
 		}
 		connection = new Connection(this, options);

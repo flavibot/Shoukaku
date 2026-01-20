@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unused-vars */
 import type { NodeOption } from '../../Shoukaku';
 import { Connector } from '../Connector';
 
@@ -6,7 +6,7 @@ export class Custom extends Connector {
 	// sendPacket is where your library send packets to Discord Gateway
 	public sendPacket(shardId: number, payload: any, important: boolean): void {
 		this.client.nc?.publish(`voice-shard.bot.${this.getId()}.${this.client.cluster.id}.data`, JSON.stringify({
-			op: "send-ws-bot",
+			op: 'send-ws-bot',
 			d: {
 				shardId: shardId,
 				discordData: payload.d
