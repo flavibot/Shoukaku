@@ -43,7 +43,7 @@ export function mergeDefault<T extends Record<string, any>>(def: T, given: T): R
 		if (def[key] === null || (typeof def[key] === 'string' && def[key].length === 0)) {
 			if (!given[key]) throw new Error(`${String(key)} was not found from the given options.`);
 		}
-		if (given[key] === null || given[key] === undefined) given[key] = def[key];
+		given[key] ??= def[key];
 	}
 	return given as Required<T>;
 }

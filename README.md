@@ -9,10 +9,8 @@
 ![NPM](https://img.shields.io/npm/l/shoukaku?style=flat-square)
 
 <p align="center">
-    <img src="https://safe.saya.moe/OlYoY5xxkMLO.png"> 
+    <img src="https://azurlane.netojuu.com/images/thumb/d/dc/ShoukakuWeddingWithoutBG.png/767px-ShoukakuWeddingWithoutBG.png"> 
 </p>
-
-> Shoukaku, from Azur Lane, drawn by: elfenlied22
 
 ### Features
 
@@ -53,7 +51,7 @@ new Shoukaku(new Connectors.DiscordJS(client), Nodes, Options);
 
 | Option                 | Type                   | Default  | Description                                                                                      | Notes                    |
 | ---------------------- | ---------------------- | -------- | ------------------------------------------------------------------------------------------------ | ------------------------ |
-| resume                 | boolean                | false    | If you want to enable resuming when your connection when your connection to lavalink disconnects |                          |
+| resume                 | boolean                | false    | If you want to enable resuming when your connection to lavalink disconnects |                          |
 | resumeTimeout          | number                 | 30       | Timeout before lavalink destroys the players on a disconnect                                     | In seconds               |
 | resumeByLibrary        | boolean                | false    | If you want to force resume players no matter what even if it's not resumable by lavalink        |                          |
 | reconnectTries         | number                 | 3        | Number of tries to reconnect to lavalink before disconnecting                                    |                          |
