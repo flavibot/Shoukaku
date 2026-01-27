@@ -225,25 +225,22 @@ export class Node extends TypedEventEmitter<NodeEvents> {
 
 			const server = new Websocket(url.toString(), { headers } as Websocket.ClientOptions);
 
-			const cleanup = () => {
-				server.onopen = null;
-				server.onclose = null;
-				server.onerror = null;
-			};
+			server.once('upgrade', response => this.open(response));
+			server.on('message', data => void this.message(data).catch(error => this.error(error as Error)));
+			server.on('error', error => this.error(error));
 
 			return new Promise<Websocket>((resolve, reject) => {
-				server.onopen = () => {
-					cleanup();
+				const onOpen = () => {
+					server.removeListener('close', onClose);
 					resolve(server);
 				};
-				server.onclose = () => {
-					cleanup();
+				const onClose = () => {
+					server.removeListener('open', onOpen);
+					server.removeAllListeners();
 					reject(new Error('Websocket closed before a connection was established'));
 				};
-				server.onerror = (error) => {
-					cleanup();
-					reject(new Error(`Websocket failed to connect due to: ${error.message}`));
-				};
+				server.once('open', onOpen);
+				server.once('close', onClose);
 			});
 		};
 
@@ -273,10 +270,7 @@ export class Node extends TypedEventEmitter<NodeEvents> {
 			throw connectError;
 		}
 
-		this.ws!.once('upgrade', response => this.open(response));
 		this.ws!.once('close', (...args) => void this.close(...args));
-		this.ws!.on('error', error => this.error(error));
-		this.ws!.on('message', data => void this.message(data).catch(error => this.error(error as Error)));
 	}
 
 	/**
