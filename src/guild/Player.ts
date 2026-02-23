@@ -254,7 +254,7 @@ export class Player extends TypedEventEmitter<PlayerEvents> {
 		if (!node || node.name === this.node.name || node.state !== State.CONNECTED) return false;
 
 		let lastNode = this.node.manager.nodes.get(this.node.name);
-		if (!lastNode || lastNode.state !== State.CONNECTED)
+		if (lastNode?.state !== State.CONNECTED)
 			lastNode = this.node.manager.getIdealNode(connection);
 
 		await this.destroy();

@@ -1,5 +1,5 @@
-import { ShoukakuDefaults, VoiceState } from './Constants';
 import { Connector } from './connectors/Connector';
+import { ShoukakuDefaults, VoiceState } from './Constants';
 import { Connection } from './guild/Connection';
 import { Player } from './guild/Player';
 import { Node } from './node/Node';

@@ -12,7 +12,15 @@ Automatically generated documentation for the *latest commit* on the ***master**
 API Documentation for specific versions and additional usage information can be found on the [guide](https://guide.shoukaku.shipgirl.moe/).
 
 <p align="center">
-    <img src="https://safe.saya.moe/OlYoY5xxkMLO.png"> 
+    <img src="https://azurlane.netojuu.com/images/thumb/d/dc/ShoukakuWeddingWithoutBG.png/767px-ShoukakuWeddingWithoutBG.png"> 
 </p>
 
-> Shoukaku, from Azur Lane, drawn by: elfenlied22
+### Other Links
+
+- [Discord](https://discord.gg/FVqbtGu)
+
+- [Lavalink](https://github.com/lavalink-devs/Lavalink)
+
+### Code made with ❤ by @ichimakase (Saya)
+
+> The Shipgirl Project
