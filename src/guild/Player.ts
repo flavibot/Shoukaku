@@ -489,7 +489,7 @@ export class Player extends TypedEventEmitter<PlayerEvents> {
 	 * Sends server update to lavalink
 	 * @internal
 	 */
-	public async sendServerUpdate(connection: Connection): Promise<void> {
+	public async sendServerUpdate(connection: Connection, forceReconnect?: boolean): Promise<void> {
 		if (!connection?.serverUpdate) {
 			console.error(`[Player] -> sendServerUpdate : No server update available for ${this.guildId}`);
 			throw new Error('No server update available');
@@ -507,7 +507,8 @@ export class Player extends TypedEventEmitter<PlayerEvents> {
 					sessionId: connection.sessionId!,
 					channelId: connection.channelId!
 				}
-			}
+			},
+			forceReconnect
 		};
 		await this.node.rest.updatePlayer(playerUpdate);
 	}

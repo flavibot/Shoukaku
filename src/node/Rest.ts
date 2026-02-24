@@ -136,6 +136,7 @@ export interface UpdatePlayerInfo {
 	guildId: string;
 	playerOptions: UpdatePlayerOptions;
 	noReplace?: boolean;
+	forceReconnect?: boolean;
 }
 
 export interface SessionInfo {
@@ -256,7 +257,10 @@ export class Rest {
 			endpoint: `/sessions/${this.sessionId}/players/${data.guildId}`,
 			options: {
 				method: 'PATCH',
-				params: { noReplace: data.noReplace?.toString() ?? 'false' },
+				params: {
+					noReplace: data.noReplace?.toString() ?? 'false',
+					forceReconnect: data.forceReconnect?.toString() ?? 'false'
+				},
 				headers: { 'Content-Type': 'application/json' },
 				body: data.playerOptions as Record<string, unknown>
 			}
