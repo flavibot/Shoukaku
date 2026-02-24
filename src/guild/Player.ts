@@ -232,7 +232,8 @@ export class Player extends TypedEventEmitter<PlayerEvents> {
 				voice: {
 					token: connection.serverUpdate!.token,
 					endpoint: connection.serverUpdate!.endpoint,
-					sessionId: connection.sessionId!
+					sessionId: connection.sessionId!,
+					channelId: connection.channelId!
 				},
 				volume: this.volume
 			}
@@ -501,9 +502,10 @@ export class Player extends TypedEventEmitter<PlayerEvents> {
 			guildId: this.guildId,
 			playerOptions: {
 				voice: {
-					token: connection.serverUpdate.token,
-					endpoint: connection.serverUpdate.endpoint,
-					sessionId: connection.sessionId
+					token: connection.serverUpdate!.token,
+					endpoint: connection.serverUpdate!.endpoint,
+					sessionId: connection.sessionId!,
+					channelId: connection.channelId!
 				}
 			}
 		};
