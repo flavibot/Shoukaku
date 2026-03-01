@@ -403,6 +403,14 @@ export class Node extends TypedEventEmitter<NodeEvents> {
 			await this.connect();
 		} catch (error) {
 			this.emit('error', error as Error);
+			if (!this.destroyed) {
+				// Re-add node to the map since the 'disconnect' event removes it
+				this.manager.nodes.set(this.name, this);
+				this.once('disconnect', () => this.manager.nodes.delete(this.name));
+				this.emit('debug', `[Socket] -> [${this.name}] : Reconnect failed, retrying in ${this.manager.options.reconnectInterval} seconds...`);
+				await wait(this.manager.options.reconnectInterval * 1000);
+				void this.close(code, reason);
+			}
 		}
 	}
 
