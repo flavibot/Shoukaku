@@ -274,7 +274,10 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 		try {
 			await connection.connect();
 		} catch (error) {
-			this.connections.delete(options.guildId);
+			// A leave during connect() dropped this connection already, and a join
+			// that followed it may have registered its own: only delete ours
+			if (this.connections.get(options.guildId) === connection)
+				this.connections.delete(options.guildId);
 			throw error;
 		}
 		try {
@@ -284,7 +287,8 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 			return await this.createPlayer(options.guildId, node, connection);
 		} catch (error) {
 			connection.disconnect();
-			this.connections.delete(options.guildId);
+			if (this.connections.get(options.guildId) === connection)
+				this.connections.delete(options.guildId);
 			throw error;
 		}
 	}
@@ -312,7 +316,8 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 			return await this.createPlayer(guildId, node, connection);
 		} catch (error) {
 			connection.disconnect();
-			this.connections.delete(guildId);
+			if (this.connections.get(guildId) === connection)
+				this.connections.delete(guildId);
 			throw error;
 		}
 	}
@@ -354,7 +359,11 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 				await player.destroy();
 			} catch { /* empty */ }
 			player.clean();
-			this.players.delete(guildId);
+			// A join that ran while the destroy was awaited may have registered a
+			// new player for this guild: only delete the one destroyed here, or the
+			// node can no longer find the new one to deliver its events
+			if (this.players.get(guildId) === player)
+				this.players.delete(guildId);
 		}
 	}
 }
