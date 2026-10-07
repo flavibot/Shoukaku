@@ -268,6 +268,11 @@ export class Node extends TypedEventEmitter<NodeEvents> {
 		for (this.reconnects = 0; this.reconnects < this.manager.options.reconnectTries; this.reconnects++) {
 			try {
 				this.ws = await createConnection();
+				// The error of an EARLIER attempt must not outlive the attempt that
+				// opened the socket: it used to make this connect() tear that socket
+				// down, emit `disconnect` (the manager deletes the node) and reject,
+				// so a node unreachable for one attempt never joined the pool.
+				connectError = undefined;
 				break;
 			} catch (error) {
 				this.emit('reconnecting', this.manager.options.reconnectTries - this.reconnects, this.manager.options.reconnectInterval);
@@ -427,21 +432,15 @@ export class Node extends TypedEventEmitter<NodeEvents> {
      * @internal
      */
 	private async resumePlayers(): Promise<void> {
-		const playersWithData = [];
-		const playersWithoutData = [];
-
-		for (const player of this.manager.players.values()) {
-			const serverUpdate = this.manager.connections.get(player.guildId)?.serverUpdate;
-			if (serverUpdate)
-				playersWithData.push(player);
-			else
-				playersWithoutData.push(player);
-		}
-
-		await Promise.allSettled([
-			...playersWithData.map(player => player.resume()),
-			...playersWithoutData.map(player => this.manager.leaveVoiceChannel(player.guildId))
-		]);
+		// Only this node's players: the manager-wide walk re-sent every player
+		// of the client on another node's 'ready' too. A player without a
+		// server update is mid-rejoin (its leave cleared the update and its
+		// VOICE_SERVER_UPDATE is still to come): it used to be torn out of voice
+		// here, and its dispatcher was left without a connection. Leaving it
+		// alone lets its own rejoin finish with the credentials it waits for.
+		const players = [ ...this.manager.players.values() ].filter(player => player.node === this);
+		const resumable = players.filter(player => this.manager.connections.get(player.guildId)?.serverUpdate);
+		await Promise.allSettled(resumable.map(player => player.resume()));
 	}
 
 	/**
