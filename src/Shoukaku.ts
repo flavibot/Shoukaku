@@ -294,12 +294,23 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 	}
 
 	public async createPlayer(guildId: string, node: Node, connection: Connection): Promise<Player> {
+		// A caller that read the connection before an await (reCreatePlayer
+		// destroys the old player first) may hold one a leave has dropped since:
+		// its voice credentials are stale, and a join that followed may have sent
+		// newer ones for this guild. Sending them now would overwrite those
+		if (this.connections.get(guildId) !== connection)
+			throw new Error('This connection is not the guild\'s registered connection');
 		const player = this.options.structures.player ? new this.options.structures.player(guildId, node) : new Player(guildId, node);
 		const onUpdate = (state: VoiceState) => {
 			if (state !== VoiceState.SESSION_READY) return;
 			void player.sendServerUpdate(connection);
 		};
 		await player.sendServerUpdate(connection);
+		// A leave during the PATCH dropped this connection, and a join that
+		// followed may have registered its own player: registering now would put
+		// a player with no connection over the guild's live one
+		if (this.connections.get(guildId) !== connection)
+			throw new Error('The voice connection was dropped while the player was being created');
 		connection.on('connectionUpdate', onUpdate);
 		this.players.set(player.guildId, player);
 		return player;
