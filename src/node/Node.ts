@@ -268,6 +268,11 @@ export class Node extends TypedEventEmitter<NodeEvents> {
 		for (this.reconnects = 0; this.reconnects < this.manager.options.reconnectTries; this.reconnects++) {
 			try {
 				this.ws = await createConnection();
+				// The error of an EARLIER attempt must not outlive the attempt that
+				// opened the socket: it used to make this connect() tear that socket
+				// down, emit `disconnect` (the manager deletes the node) and reject,
+				// so a node unreachable for one attempt never joined the pool.
+				connectError = undefined;
 				break;
 			} catch (error) {
 				this.emit('reconnecting', this.manager.options.reconnectTries - this.reconnects, this.manager.options.reconnectInterval);
